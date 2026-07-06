@@ -6,6 +6,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Console\Scheduling\Schedule;
 use App\Jobs\GenerateSitemaps;
+use Sentry\Laravel\Integration;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule) {
-        $schedule->job(new GenerateSitemaps)->everyThreeHours();
+        $schedule->job(new GenerateSitemaps)->everyThreeHours()->sentryMonitor();
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(StartSession::class);
@@ -28,5 +29,5 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        Integration::handles($exceptions);
     })->create();
