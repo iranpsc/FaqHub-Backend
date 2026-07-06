@@ -134,7 +134,9 @@ class GenerateSitemaps implements ShouldQueue
         $this->streamEntitySitemaps(
             $baseUrl,
             $targetDir,
-            Tag::query()->select(['id', 'slug', 'updated_at']),
+            Tag::query()
+                ->whereHas('questions')
+                ->select(['id', 'slug', 'updated_at']),
             'tags',
             fn ($tag, string $baseUrl): array => [
                 $baseUrl . '/tags/' . ltrim((string) $tag->slug, '/'),
@@ -148,10 +150,12 @@ class GenerateSitemaps implements ShouldQueue
         $this->streamEntitySitemaps(
             $baseUrl,
             $targetDir,
-            User::query()->select(['id', 'updated_at']),
+            User::query()
+                ->whereNotNull('username')
+                ->select(['id', 'username', 'updated_at']),
             'authors',
             fn ($user, string $baseUrl): array => [
-                $baseUrl . '/authors/' . (string) $user->id,
+                $baseUrl . '/authors/' . rawurlencode((string) $user->username),
                 $user->updated_at,
             ],
         );
