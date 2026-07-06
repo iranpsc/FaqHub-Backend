@@ -14,6 +14,7 @@
         "league/flysystem-ftp": "^3.0",
         "morilog/jalali": "^3.4",
         "sadegh19b/laravel-persian-validation": "^2.1",
+        "sentry/sentry-laravel": "^4.0",
         "spatie/laravel-activitylog": "^5.0",
         "spatie/laravel-sitemap": "^8.2",
         "ybazli/faker": "^1.0"
