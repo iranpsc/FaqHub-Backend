@@ -16,13 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
-    ->withSchedule(function (Schedule $schedule) {
-        $schedule->job(new GenerateSitemaps)->everyThreeHours()->sentryMonitor();
-    })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(StartSession::class);
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
-        $middleware->appendToGroup('api', \App\Http\Middleware\ApiRequestLogger::class);
         $middleware->appendToGroup('api', \App\Http\Middleware\ApiRateLimiter::class);
         $middleware->alias([
             'auth.optional' => \App\Http\Middleware\OptionalAuthSanctum::class,

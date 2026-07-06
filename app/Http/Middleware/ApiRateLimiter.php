@@ -23,7 +23,7 @@ class ApiRateLimiter
      */
     public function handle(Request $request, Closure $next, string $type = 'api'): Response
     {
-        if($request->ip() == '2.187.100.51') return $next($request);
+        if($request->ip() == '217.218.238.194') return $next($request);
 
         $key = $this->resolveRequestSignature($request, $type);
         $limits = $this->getLimits($type);
