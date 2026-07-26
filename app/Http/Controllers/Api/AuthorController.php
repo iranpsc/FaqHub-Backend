@@ -25,10 +25,10 @@ class AuthorController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $perPage = $request->get('per_page', 20);
-            $sortBy = $request->get('sort_by', 'score'); // score, questions_count, answers_count, name, created_at
-            $sortOrder = $request->get('sort_order', 'desc');
-            $search = $request->get('search');
+            $perPage = $request->input('per_page', 20);
+            $sortBy = $request->input('sort_by', 'score'); // score, questions_count, answers_count, name, created_at
+            $sortOrder = $request->input('sort_order', 'desc');
+            $search = $request->input('search');
 
             $query = User::withCount(['questions', 'answers', 'comments'])
                 ->with(['questions' => function ($query) {
@@ -148,7 +148,6 @@ class AuthorController extends Controller
                 'id' => $author->id,
                 'username' => $author->username,
                 'name' => $author->name,
-                'email' => $author->email,
                 'image_url' => $author->image_url,
                 'score' => $author->score ?? 0,
                 'level' => $author->level ?? 1,
@@ -173,19 +172,51 @@ class AuthorController extends Controller
     }
 
     /**
-     * Get paginated questions for a specific author
+     * Get paginated questions for a specific author.
+     *
+     * Query params:
+     * - type: questions (default) | answers | comments
+     * - per_page: pagination size
      */
     public function questions(Request $request, User $user)
     {
         try {
-            $perPage = (int) $request->get('per_page', 10);
+            $perPage = (int) $request->input('per_page', 10);
+            $type = $request->input('type', 'questions');
 
-            $questions = \App\Models\Question::query()
-                ->where('user_id', $user->id)
+            if (!in_array($type, ['questions', 'answers', 'comments'], true)) {
+                $type = 'questions';
+            }
+
+            $query = \App\Models\Question::query()
                 ->with(['user', 'category', 'tags'])
                 ->withCount(['votes', 'answers'])
-                ->published()
-                ->paginate($perPage);
+                ->published();
+
+            switch ($type) {
+                case 'answers':
+                    $query->whereHas('answers', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)->published();
+                    })->latest('last_activity');
+                    break;
+
+                case 'comments':
+                    $query->where(function ($q) use ($user) {
+                        $q->whereHas('comments', function ($commentQuery) use ($user) {
+                            $commentQuery->where('user_id', $user->id)->published();
+                        })->orWhereHas('answers.comments', function ($commentQuery) use ($user) {
+                            $commentQuery->where('user_id', $user->id)->published();
+                        });
+                    })->latest('last_activity');
+                    break;
+
+                case 'questions':
+                default:
+                    $query->where('user_id', $user->id)->latest();
+                    break;
+            }
+
+            $questions = $query->paginate($perPage);
 
             return QuestionResource::collection($questions);
         } catch (\Exception $e) {
