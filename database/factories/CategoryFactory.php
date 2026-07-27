@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Category;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -32,12 +33,23 @@ class CategoryFactory extends Factory
      *
      * @return \Illuminate\Database\Eloquent\Factories\Factory
      */
-    public function child()
+    public function child(?Category $parent = null)
     {
-        return $this->state(function (array $attributes) {
+        return $this->state(function (array $attributes) use ($parent) {
             return [
-                'parent_id' => CategoryFactory::new(),
+                'parent_id' => $parent?->id ?? CategoryFactory::new(),
             ];
         });
+    }
+
+    /**
+     * Category with a fixed slug/name pair for route lookups.
+     */
+    public function withSlug(string $slug, ?string $name = null): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => $name ?? str_replace('-', ' ', $slug),
+            'slug' => $slug,
+        ]);
     }
 }

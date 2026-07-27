@@ -9,7 +9,6 @@ use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\AuthorController;
 use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\FileUploadController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -54,7 +53,7 @@ use Illuminate\Support\Facades\Route;
     Route::delete('questions/{question}', [QuestionController::class, 'destroy']);
 
     Route::get('tags/{tag:slug}/questions', [TagController::class, 'questions']);
-    Route::apiResource('tags', TagController::class)->only(['index']);
+    Route::apiResource('tags', TagController::class)->scoped(['tag' => 'slug']);
 
     // Answers with create rate limiting
     Route::get('questions/{question:id}/answers', [AnswerController::class, 'index']);
@@ -90,17 +89,6 @@ use Illuminate\Support\Facades\Route;
         Route::get('/activity', [UserController::class, 'activity']);
         Route::post('/update-image', [UserController::class, 'updateImage']);
         Route::post('/settings', [UserController::class, 'updateSettings']);
-    });
-
-    // File upload routes with upload rate limiting
-    Route::middleware(['auth.optional'])->prefix('upload')->group(function () {
-        Route::post('/tinymce-image', [FileUploadController::class, 'uploadTinyMCEImage']);
-        Route::post('/quill-image', [FileUploadController::class, 'uploadQuillImage']);
-        Route::post('/file', [FileUploadController::class, 'uploadFile']);
-    });
-
-    Route::middleware(['auth:sanctum'])->prefix('upload')->group(function () {
-        Route::delete('/file', [FileUploadController::class, 'deleteFile']);
     });
 
     // Dashboard routes

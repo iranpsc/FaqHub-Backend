@@ -53,4 +53,44 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * User with login email notifications enabled.
+     */
+    public function withLoginNotification(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'login_notification_enabled' => true,
+        ]);
+    }
+
+    /**
+     * User without a username (triggers generation on OAuth callback).
+     */
+    public function withoutUsername(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'username' => null,
+        ]);
+    }
+
+    /**
+     * User with an existing avatar path.
+     */
+    public function withImage(?string $path = 'avatars/existing.jpg'): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'image' => $path,
+        ]);
+    }
+
+    /**
+     * Admin role user.
+     */
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'admin',
+        ]);
+    }
 }
