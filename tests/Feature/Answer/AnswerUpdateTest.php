@@ -11,8 +11,8 @@ use Tests\TestCase;
 
 class AnswerUpdateTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAnswers;
+    use RefreshDatabase;
 
     public function test_owner_can_update_unpublished_answer(): void
     {

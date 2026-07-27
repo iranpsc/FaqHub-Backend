@@ -27,7 +27,7 @@ class CategoryResource extends JsonResource
                 'view' => $request->user()?->can('view', $this->resource) ?? false,
                 'update' => $request->user()?->can('update', $this->resource) ?? false,
                 'delete' => $request->user()?->can('delete', $this->resource) ?? false,
-            ]
+            ],
         ];
     }
 }

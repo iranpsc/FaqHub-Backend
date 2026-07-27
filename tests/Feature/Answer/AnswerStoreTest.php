@@ -13,8 +13,8 @@ use Tests\TestCase;
 
 class AnswerStoreTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAnswers;
+    use RefreshDatabase;
 
     public function test_guest_cannot_create_answer(): void
     {

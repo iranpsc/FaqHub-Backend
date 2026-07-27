@@ -10,8 +10,8 @@ use Tests\TestCase;
 
 class CategoryDestroyTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithCategories;
+    use RefreshDatabase;
 
     public function test_guest_cannot_delete_category(): void
     {

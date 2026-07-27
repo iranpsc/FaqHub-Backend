@@ -2,20 +2,23 @@
 
 namespace Database\Seeders;
 
+use App\Models\Answer;
+use App\Models\Category;
+use App\Models\Question;
+use App\Models\Tag;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use App\Models\User;
-use App\Models\Category;
-use App\Models\Tag;
-use App\Models\Question;
-use App\Models\Answer;
 
 class MigrateDatabaseSeeder extends Seeder
 {
     private string $wpPrefix = 'dfdf_';
+
     private string $wpConn = 'wordpress';
+
     private string $targetConn = 'app';
+
     private int $chunkSize = 1000;
 
     public function run(): void
@@ -38,12 +41,12 @@ class MigrateDatabaseSeeder extends Seeder
 
     private function seedUsers(): void
     {
-        $usersTable = $this->wpPrefix . 'users';
+        $usersTable = $this->wpPrefix.'users';
 
         // Precompute reputation scores per user
         $scores = DB::connection($this->wpConn)
-            ->table($this->wpPrefix . 'ap_reputations as r')
-            ->join($this->wpPrefix . 'ap_reputation_events as e', 'e.slug', '=', 'r.rep_event')
+            ->table($this->wpPrefix.'ap_reputations as r')
+            ->join($this->wpPrefix.'ap_reputation_events as e', 'e.slug', '=', 'r.rep_event')
             ->select('r.rep_user_id', DB::raw('SUM(e.points) as score'))
             ->groupBy('r.rep_user_id')
             ->pluck('score', 'rep_user_id');
@@ -64,7 +67,7 @@ class MigrateDatabaseSeeder extends Seeder
             DB::transaction(function () use ($rows, $scores) {
                 foreach ($rows as $row) {
                     $email = $this->sanitizeEmail($row->user_email, (int) $row->ID);
-                    $name = $row->display_name ?: $row->user_login ?: ('user_' . $row->ID);
+                    $name = $row->display_name ?: $row->user_login ?: ('user_'.$row->ID);
                     $user = User::query()->firstOrCreate(
                         ['email' => $email],
                         [
@@ -91,25 +94,25 @@ class MigrateDatabaseSeeder extends Seeder
 
     private function seedCategories(): void
     {
-        $terms = $this->wpPrefix . 'terms';
-        $tax = $this->wpPrefix . 'term_taxonomy';
+        $terms = $this->wpPrefix.'terms';
+        $tax = $this->wpPrefix.'term_taxonomy';
 
         $source = DB::connection($this->wpConn)
-            ->table($terms . ' as t')
-            ->join($tax . ' as tt', 'tt.term_id', '=', 't.term_id')
-            ->leftJoin($tax . ' as ttp', 'ttp.term_taxonomy_id', '=', 'tt.parent')
+            ->table($terms.' as t')
+            ->join($tax.' as tt', 'tt.term_id', '=', 't.term_id')
+            ->leftJoin($tax.' as ttp', 'ttp.term_taxonomy_id', '=', 'tt.parent')
             ->where('tt.taxonomy', 'question_category')
             ->orderBy('t.term_id')
             ->get(['t.term_id', 't.name', 't.slug', 'tt.term_taxonomy_id', 'tt.parent', DB::raw('COALESCE(ttp.term_id, 0) as parent_term_id')]);
 
         DB::transaction(function () use ($source) {
-                foreach ($source as $row) {
-                    $normalizedSlug = $this->normalizeSlug((string) $row->slug);
-                    $uniqueSlug = $this->ensureUniqueSlug('categories', $normalizedSlug);
-                    $category = Category::query()->firstOrCreate(
-                        ['slug' => $uniqueSlug],
-                        ['name' => $row->name]
-                    );
+            foreach ($source as $row) {
+                $normalizedSlug = $this->normalizeSlug((string) $row->slug);
+                $uniqueSlug = $this->ensureUniqueSlug('categories', $normalizedSlug);
+                $category = Category::query()->firstOrCreate(
+                    ['slug' => $uniqueSlug],
+                    ['name' => $row->name]
+                );
 
                 DB::table('wp_to_laravel_terms')
                     ->updateOrInsert(
@@ -137,14 +140,14 @@ class MigrateDatabaseSeeder extends Seeder
 
     private function seedTags(): void
     {
-        $terms = $this->wpPrefix . 'terms';
-        $tax = $this->wpPrefix . 'term_taxonomy';
+        $terms = $this->wpPrefix.'terms';
+        $tax = $this->wpPrefix.'term_taxonomy';
 
         $lastId = 0;
         while (true) {
             $rows = DB::connection($this->wpConn)
-                ->table($terms . ' as t')
-                ->join($tax . ' as tt', 'tt.term_id', '=', 't.term_id')
+                ->table($terms.' as t')
+                ->join($tax.' as tt', 'tt.term_id', '=', 't.term_id')
                 ->where('tt.taxonomy', 'question_tag')
                 ->where('t.term_id', '>', $lastId)
                 ->orderBy('t.term_id')
@@ -178,21 +181,21 @@ class MigrateDatabaseSeeder extends Seeder
 
     private function seedQuestions(): void
     {
-        $posts = $this->wpPrefix . 'posts';
-        $aq = $this->wpPrefix . 'ap_qameta';
+        $posts = $this->wpPrefix.'posts';
+        $aq = $this->wpPrefix.'ap_qameta';
 
         $lastId = 0;
         while (true) {
             $rows = DB::connection($this->wpConn)
-                ->table($posts . ' as p')
-                ->leftJoin($aq . ' as aq', 'aq.post_id', '=', 'p.ID')
+                ->table($posts.' as p')
+                ->leftJoin($aq.' as aq', 'aq.post_id', '=', 'p.ID')
                 ->where('p.post_type', 'question')
                 ->where('p.ID', '>', $lastId)
                 ->orderBy('p.ID')
                 ->limit($this->chunkSize)
                 ->get([
                     'p.ID', 'p.post_author', 'p.post_title', 'p.post_content', 'p.post_status', 'p.post_date', 'p.post_modified', 'p.post_name',
-                    'aq.featured', 'aq.views', 'aq.last_updated'
+                    'aq.featured', 'aq.views', 'aq.last_updated',
                 ]);
 
             if ($rows->isEmpty()) {
@@ -209,9 +212,9 @@ class MigrateDatabaseSeeder extends Seeder
                     $laravelUserId = $userMap[$row->post_author] ?? null;
                     if ((int) $row->post_author === 0) {
                         $laravelUserId = null;
-                    } elseif (!$laravelUserId) {
+                    } elseif (! $laravelUserId) {
                         // Create or reuse a guest/migrated user and map for this author
-                        $guestEmail = $this->sanitizeEmail('user_' . (int) $row->post_author . '@example.invalid', (int) $row->post_author);
+                        $guestEmail = $this->sanitizeEmail('user_'.(int) $row->post_author.'@example.invalid', (int) $row->post_author);
                         $guestName = 'Guest';
                         $laravelUserId = $this->guestUserIdForEmail($guestEmail, $guestName);
                         if ((int) $row->post_author > 0) {
@@ -222,7 +225,7 @@ class MigrateDatabaseSeeder extends Seeder
                         }
                     }
                     $categoryId = $this->firstCategoryIdForPost((int) $row->ID);
-                    if (!$categoryId) {
+                    if (! $categoryId) {
                         $categoryId = Category::query()->firstOrCreate(['slug' => 'uncategorized'], ['name' => 'Uncategorized'])->id;
                     }
 
@@ -259,9 +262,9 @@ class MigrateDatabaseSeeder extends Seeder
 
     private function seedQuestionTags(): void
     {
-        $posts = $this->wpPrefix . 'posts';
-        $rel = $this->wpPrefix . 'term_relationships';
-        $tax = $this->wpPrefix . 'term_taxonomy';
+        $posts = $this->wpPrefix.'posts';
+        $rel = $this->wpPrefix.'term_relationships';
+        $tax = $this->wpPrefix.'term_taxonomy';
 
         $lastId = 0;
         while (true) {
@@ -278,8 +281,8 @@ class MigrateDatabaseSeeder extends Seeder
             }
 
             $rels = DB::connection($this->wpConn)
-                ->table($rel . ' as tr')
-                ->join($tax . ' as tt', 'tt.term_taxonomy_id', '=', 'tr.term_taxonomy_id')
+                ->table($rel.' as tr')
+                ->join($tax.' as tt', 'tt.term_taxonomy_id', '=', 'tr.term_taxonomy_id')
                 ->whereIn('tr.object_id', $postIds)
                 ->where('tt.taxonomy', 'question_tag')
                 ->get(['tr.object_id', 'tt.term_id']);
@@ -303,21 +306,21 @@ class MigrateDatabaseSeeder extends Seeder
 
     private function seedAnswers(): void
     {
-        $posts = $this->wpPrefix . 'posts';
-        $aq = $this->wpPrefix . 'ap_qameta';
+        $posts = $this->wpPrefix.'posts';
+        $aq = $this->wpPrefix.'ap_qameta';
 
         $lastId = 0;
         while (true) {
             $rows = DB::connection($this->wpConn)
-                ->table($posts . ' as p')
-                ->leftJoin($aq . ' as aq', 'aq.post_id', '=', 'p.post_parent')
+                ->table($posts.' as p')
+                ->leftJoin($aq.' as aq', 'aq.post_id', '=', 'p.post_parent')
                 ->where('p.post_type', 'answer')
                 ->where('p.ID', '>', $lastId)
                 ->orderBy('p.ID')
                 ->limit($this->chunkSize)
                 ->get([
                     'p.ID', 'p.post_parent', 'p.post_author', 'p.post_content', 'p.post_status', 'p.post_date', 'p.post_modified',
-                    'aq.selected_id'
+                    'aq.selected_id',
                 ]);
 
             if ($rows->isEmpty()) {
@@ -332,12 +335,12 @@ class MigrateDatabaseSeeder extends Seeder
                         continue;
                     }
                     $questionId = DB::table('wp_to_laravel_posts')->where(['wp_post_id' => $row->post_parent, 'kind' => 'question'])->value('laravel_id');
-                    if (!$questionId) {
+                    if (! $questionId) {
                         continue;
                     }
                     $laravelUserId = $userMap[$row->post_author] ?? null;
-                    if (!$laravelUserId) {
-                        $guestEmail = $this->sanitizeEmail('user_' . (int) $row->post_author . '@example.invalid', (int) $row->post_author);
+                    if (! $laravelUserId) {
+                        $guestEmail = $this->sanitizeEmail('user_'.(int) $row->post_author.'@example.invalid', (int) $row->post_author);
                         $guestName = 'Guest';
                         $laravelUserId = $this->guestUserIdForEmail($guestEmail, $guestName);
                         if ((int) $row->post_author > 0) {
@@ -374,21 +377,21 @@ class MigrateDatabaseSeeder extends Seeder
 
     private function seedComments(): void
     {
-        $comments = $this->wpPrefix . 'comments';
-        $posts = $this->wpPrefix . 'posts';
+        $comments = $this->wpPrefix.'comments';
+        $posts = $this->wpPrefix.'posts';
 
         $lastId = 0;
         while (true) {
             $rows = DB::connection($this->wpConn)
-                ->table($comments . ' as c')
-                ->join($posts . ' as p', 'p.ID', '=', 'c.comment_post_ID')
+                ->table($comments.' as c')
+                ->join($posts.' as p', 'p.ID', '=', 'c.comment_post_ID')
                 ->whereIn('p.post_type', ['question', 'answer'])
                 ->where('c.comment_ID', '>', $lastId)
                 ->orderBy('c.comment_ID')
                 ->limit($this->chunkSize)
                 ->get([
                     'c.comment_ID', 'c.comment_post_ID', 'c.user_id', 'c.comment_author', 'c.comment_author_email', 'c.comment_content', 'c.comment_approved', 'c.comment_date', 'c.comment_date_gmt',
-                    'p.post_type'
+                    'p.post_type',
                 ]);
 
             if ($rows->isEmpty()) {
@@ -404,12 +407,12 @@ class MigrateDatabaseSeeder extends Seeder
                     $published = in_array((string) $row->comment_approved, ['1', 'approve'], true);
                     $votableKind = $row->post_type === 'question' ? 'question' : 'answer';
                     $laravelCommentableId = DB::table('wp_to_laravel_posts')->where(['wp_post_id' => $row->comment_post_ID, 'kind' => $votableKind])->value('laravel_id');
-                    if (!$laravelCommentableId) {
+                    if (! $laravelCommentableId) {
                         continue;
                     }
                     // Resolve user: WP user or create guest
                     $userId = $userMap[$row->user_id] ?? null;
-                    if (!$userId) {
+                    if (! $userId) {
                         $guestEmail = $this->sanitizeEmail($row->comment_author_email, (int) $row->comment_ID);
                         $guestName = trim((string) $row->comment_author) ?: 'Guest';
                         $userId = $this->guestUserIdForEmail($guestEmail, $guestName);
@@ -439,14 +442,14 @@ class MigrateDatabaseSeeder extends Seeder
 
     private function seedVotes(): void
     {
-        $votes = $this->wpPrefix . 'ap_votes';
-        $posts = $this->wpPrefix . 'posts';
+        $votes = $this->wpPrefix.'ap_votes';
+        $posts = $this->wpPrefix.'posts';
 
         $lastId = 0;
         while (true) {
             $rows = DB::connection($this->wpConn)
-                ->table($votes . ' as v')
-                ->join($posts . ' as p', 'p.ID', '=', 'v.vote_post_id')
+                ->table($votes.' as v')
+                ->join($posts.' as p', 'p.ID', '=', 'v.vote_post_id')
                 ->where('v.vote_id', '>', $lastId)
                 ->where('v.vote_type', 'vote')
                 ->whereIn('p.post_type', ['question', 'answer'])
@@ -463,11 +466,11 @@ class MigrateDatabaseSeeder extends Seeder
                 foreach ($rows as $row) {
                     $kind = $row->post_type === 'question' ? 'question' : 'answer';
                     $laravelId = DB::table('wp_to_laravel_posts')->where(['wp_post_id' => $row->vote_post_id, 'kind' => $kind])->value('laravel_id');
-                    if (!$laravelId) {
+                    if (! $laravelId) {
                         continue;
                     }
                     $type = ((int) $row->vote_value) === 1 ? 'up' : 'down';
-                    $userId = $userMap[$row->vote_user_id] ?? $this->guestUserIdForEmail('user_' . (int) $row->vote_user_id . '@example.invalid', 'Guest');
+                    $userId = $userMap[$row->vote_user_id] ?? $this->guestUserIdForEmail('user_'.(int) $row->vote_user_id.'@example.invalid', 'Guest');
                     $votableType = $kind === 'question' ? Question::class : Answer::class;
 
                     // Upsert to respect unique constraint: one vote per user per votable
@@ -519,9 +522,10 @@ class MigrateDatabaseSeeder extends Seeder
     private function sanitizeEmail(?string $email, int $wpUserId): string
     {
         $email = trim((string) $email);
-        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return 'user_' . $wpUserId . '@example.invalid';
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return 'user_'.$wpUserId.'@example.invalid';
         }
+
         return $email;
     }
 
@@ -536,9 +540,10 @@ class MigrateDatabaseSeeder extends Seeder
         $base = $slug;
         $i = 1;
         while (DB::table('questions')->where('slug', $slug)->exists()) {
-            $slug = $base . '-' . $i;
+            $slug = $base.'-'.$i;
             $i++;
         }
+
         return $slug;
     }
 
@@ -556,6 +561,7 @@ class MigrateDatabaseSeeder extends Seeder
         // Decode percent-encoded (including double-encoded) and normalize
         $decoded = $this->deepUrlDecode($last);
         $normalized = $this->normalizeSlug($decoded);
+
         return $normalized !== '' ? $normalized : Str::uuid()->toString();
     }
 
@@ -569,6 +575,7 @@ class MigrateDatabaseSeeder extends Seeder
             }
             $prev = $curr;
         }
+
         return $prev;
     }
 
@@ -582,6 +589,7 @@ class MigrateDatabaseSeeder extends Seeder
         $slug = preg_replace('/-+/u', '-', $slug);
         // Trim hyphens
         $slug = trim($slug, '-');
+
         return $slug ?? '';
     }
 
@@ -590,9 +598,10 @@ class MigrateDatabaseSeeder extends Seeder
         $slug = $baseSlug !== '' ? $baseSlug : Str::uuid()->toString();
         $i = 1;
         while (DB::table($table)->where('slug', $slug)->exists()) {
-            $slug = $baseSlug . '-' . $i;
+            $slug = $baseSlug.'-'.$i;
             $i++;
         }
+
         return $slug;
     }
 
@@ -602,6 +611,7 @@ class MigrateDatabaseSeeder extends Seeder
         if (empty($wpUserIds)) {
             return [];
         }
+
         return DB::table('wp_to_laravel_users')
             ->whereIn('wp_user_id', $wpUserIds)
             ->pluck('laravel_user_id', 'wp_user_id')
@@ -610,19 +620,19 @@ class MigrateDatabaseSeeder extends Seeder
 
     private function firstCategoryIdForPost(int $wpPostId): ?int
     {
-        $rel = $this->wpPrefix . 'term_relationships';
-        $tax = $this->wpPrefix . 'term_taxonomy';
+        $rel = $this->wpPrefix.'term_relationships';
+        $tax = $this->wpPrefix.'term_taxonomy';
 
         $termId = DB::connection($this->wpConn)
-            ->table($rel . ' as tr')
-            ->join($tax . ' as tt', 'tt.term_taxonomy_id', '=', 'tr.term_taxonomy_id')
+            ->table($rel.' as tr')
+            ->join($tax.' as tt', 'tt.term_taxonomy_id', '=', 'tr.term_taxonomy_id')
             ->where('tr.object_id', $wpPostId)
             ->where('tt.taxonomy', 'question_category')
             ->orderBy('tr.term_taxonomy_id')
             ->limit(1)
             ->value('tt.term_id');
 
-        if (!$termId) {
+        if (! $termId) {
             return null;
         }
 
@@ -640,9 +650,8 @@ class MigrateDatabaseSeeder extends Seeder
                 'score' => 0,
             ]
         );
+
         // Map artificial wp_user_id of 0 or negative emails are not tracked in map table.
         return $user->id;
     }
 }
-
-

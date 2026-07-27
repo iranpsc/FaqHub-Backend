@@ -69,7 +69,7 @@ jobs:
           php-version: ${{ env.PHP_VERSION }}
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, intl, gd, exif, fileinfo
           tools: composer:v2
-          coverage: none
+          coverage: pcov
 
       - name: Get Composer cache directory
         id: composer-cache
@@ -92,7 +92,94 @@ jobs:
           php artisan key:generate --ansi
 
       - name: Run tests
-        run: php artisan test --parallel --compact
+        run: |
+          mkdir -p build/coverage
+          php artisan test --parallel --coverage --log-junit=build/junit.xml --coverage-clover=build/coverage/clover.xml
+
+      - name: Publish test statistics
+        if: always()
+        run: |
+          php <<'PHP'
+          <?php
+
+          $summaryPath = getenv('GITHUB_STEP_SUMMARY');
+
+          if ($summaryPath === false || $summaryPath === '') {
+              exit(0);
+          }
+
+          $lines = ['## Test Results', ''];
+
+          if (! file_exists('build/junit.xml')) {
+              $lines[] = 'Test report was not generated.';
+              file_put_contents($summaryPath, implode(PHP_EOL, $lines).PHP_EOL, FILE_APPEND);
+
+              exit(0);
+          }
+
+          $junit = simplexml_load_file('build/junit.xml');
+          $suite = $junit->testsuite[0] ?? $junit->testsuite;
+
+          $total = (int) $suite['tests'];
+          $failures = (int) $suite['failures'];
+          $errors = (int) $suite['errors'];
+          $skipped = (int) $suite['skipped'];
+          $ran = $total - $skipped;
+          $passed = $ran - $failures - $errors;
+          $duration = number_format((float) $suite['time'], 2);
+
+          $lines[] = '| Metric | Count |';
+          $lines[] = '| --- | ---: |';
+          $lines[] = sprintf('| Total | %d |', $total);
+          $lines[] = sprintf('| Ran | %d |', $ran);
+          $lines[] = sprintf('| Passed | %d |', $passed);
+          $lines[] = sprintf('| Failed | %d |', $failures);
+          $lines[] = sprintf('| Errors | %d |', $errors);
+          $lines[] = sprintf('| Skipped | %d |', $skipped);
+          $lines[] = '';
+          $lines[] = sprintf('**Duration:** %ss', $duration);
+
+          if (file_exists('build/coverage/clover.xml')) {
+              $clover = simplexml_load_file('build/coverage/clover.xml');
+              $metrics = $clover->project->metrics ?? null;
+
+              if ($metrics !== null) {
+                  $statements = (int) $metrics['statements'];
+                  $coveredStatements = (int) $metrics['coveredstatements'];
+                  $methods = (int) $metrics['methods'];
+                  $coveredMethods = (int) $metrics['coveredmethods'];
+                  $lineCoverage = $statements > 0
+                      ? round(($coveredStatements / $statements) * 100, 2)
+                      : 0.0;
+                  $methodCoverage = $methods > 0
+                      ? round(($coveredMethods / $methods) * 100, 2)
+                      : 0.0;
+
+                  $lines[] = '';
+                  $lines[] = '## Code Coverage';
+                  $lines[] = '';
+                  $lines[] = '| Metric | Value |';
+                  $lines[] = '| --- | ---: |';
+                  $lines[] = sprintf('| Line coverage | %.2f%% |', $lineCoverage);
+                  $lines[] = sprintf('| Statements covered | %d / %d |', $coveredStatements, $statements);
+                  $lines[] = sprintf('| Method coverage | %.2f%% |', $methodCoverage);
+                  $lines[] = sprintf('| Methods covered | %d / %d |', $coveredMethods, $methods);
+              }
+          }
+
+          file_put_contents($summaryPath, implode(PHP_EOL, $lines).PHP_EOL, FILE_APPEND);
+          PHP
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ github.run_id }}
+          path: |
+            build/junit.xml
+            build/coverage/clover.xml
+          if-no-files-found: ignore
+          retention-days: 14
 
   release:
     name: Production artifact

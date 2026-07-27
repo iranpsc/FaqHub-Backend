@@ -12,8 +12,8 @@ use Tests\TestCase;
 
 class AnswerVoteTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAnswers;
+    use RefreshDatabase;
 
     public function test_authenticated_user_can_upvote_and_owner_gains_ten_score(): void
     {

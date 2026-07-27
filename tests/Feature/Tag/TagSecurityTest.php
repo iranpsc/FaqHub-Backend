@@ -12,8 +12,8 @@ use Tests\TestCase;
 
 class TagSecurityTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithTags;
+    use RefreshDatabase;
 
     public function test_mass_assignment_cannot_override_id_or_timestamps_on_store(): void
     {

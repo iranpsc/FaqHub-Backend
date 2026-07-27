@@ -9,8 +9,8 @@ use Tests\TestCase;
 
 class TagUpdateTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithTags;
+    use RefreshDatabase;
 
     public function test_guest_cannot_update_tag(): void
     {

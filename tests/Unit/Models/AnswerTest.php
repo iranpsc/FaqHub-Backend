@@ -4,7 +4,10 @@ namespace Tests\Unit\Models;
 
 use App\Models\Answer;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class AnswerTest extends TestCase
@@ -56,8 +59,8 @@ class AnswerTest extends TestCase
         $this->assertTrue($answer->user->is($author));
         $this->assertTrue($answer->publisher->is($publisher));
         $this->assertNotNull($answer->question);
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class, $answer->votes());
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class, $answer->correctnessMarks());
+        $this->assertInstanceOf(MorphMany::class, $answer->votes());
+        $this->assertInstanceOf(HasMany::class, $answer->correctnessMarks());
     }
 
     public function test_casts_booleans_and_datetime(): void
@@ -66,6 +69,6 @@ class AnswerTest extends TestCase
 
         $this->assertTrue($answer->published);
         $this->assertTrue($answer->is_correct);
-        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $answer->published_at);
+        $this->assertInstanceOf(Carbon::class, $answer->published_at);
     }
 }

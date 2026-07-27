@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Sanctum\Sanctum;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -13,7 +14,7 @@ class OptionalAuthSanctum
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -22,7 +23,7 @@ class OptionalAuthSanctum
             return $next($request);
         }
 
-        /** @var class-string<\Laravel\Sanctum\PersonalAccessToken> $model */
+        /** @var class-string<PersonalAccessToken> $model */
         $model = Sanctum::$personalAccessTokenModel;
         $accessToken = $model::findToken($bearerToken);
 

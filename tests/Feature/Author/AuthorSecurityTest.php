@@ -12,8 +12,8 @@ use Tests\TestCase;
 
 class AuthorSecurityTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAuthors;
+    use RefreshDatabase;
 
     #[DataProvider('publicEndpointsProvider')]
     public function test_all_author_endpoints_are_publicly_readable(string $uriFactory): void

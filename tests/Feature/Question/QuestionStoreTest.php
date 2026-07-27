@@ -8,15 +8,14 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\InteractsWithQuestions;
 use Tests\TestCase;
 
 class QuestionStoreTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithQuestions;
+    use RefreshDatabase;
 
     public function test_guest_cannot_create_question(): void
     {

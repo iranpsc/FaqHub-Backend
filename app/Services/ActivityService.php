@@ -6,6 +6,7 @@ use App\Models\Answer;
 use App\Models\Comment;
 use App\Models\Question;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Spatie\Activitylog\Models\Activity;
 
 class ActivityService
@@ -16,9 +17,8 @@ class ActivityService
      * Returns activities from activity_log table, paginated by limit/offset.
      * Activities are grouped by Persian month for frontend display.
      *
-     * @param int $limit Number of activities to return (default: 30)
-     * @param int $offset Number of activities to skip (default: 0)
-     * @return array
+     * @param  int  $limit  Number of activities to return (default: 30)
+     * @param  int  $offset  Number of activities to skip (default: 0)
      */
     public function getActivities(int $limit = 30, int $offset = 0): array
     {
@@ -44,7 +44,7 @@ class ActivityService
         $groupedActivities = [];
         foreach ($activities as $activity) {
             $month = $activity['month'] ?? 'نامشخص';
-            if (!isset($groupedActivities[$month])) {
+            if (! isset($groupedActivities[$month])) {
                 $groupedActivities[$month] = [];
             }
             $groupedActivities[$month][] = $activity;
@@ -61,16 +61,13 @@ class ActivityService
                 'offset' => $offset,
                 'next_offset' => $offset + $limit,
                 'has_more' => $hasMore,
-                'total' => Activity::count()
-            ]
+                'total' => Activity::count(),
+            ],
         ];
     }
 
     /**
      * Transform activity log entry to frontend-compatible format
-     *
-     * @param Activity $log
-     * @return array|null
      */
     private function transformLogToActivity(Activity $log): ?array
     {
@@ -79,9 +76,9 @@ class ActivityService
         $subject = $log->subject;
         // Convert properties to array if it's a Collection
         $properties = $log->properties ?? [];
-        if ($properties instanceof \Illuminate\Support\Collection) {
+        if ($properties instanceof Collection) {
             $properties = $properties->toArray();
-        } elseif (!is_array($properties)) {
+        } elseif (! is_array($properties)) {
             $properties = [];
         }
 
@@ -90,7 +87,7 @@ class ActivityService
         $userImage = $causer?->image_url ?? null;
 
         $baseActivity = [
-            'id' => 'activity_' . $log->id,
+            'id' => 'activity_'.$log->id,
             'user_name' => $userName,
             'user_id' => $userId,
             'user_image' => $userImage,
@@ -163,7 +160,7 @@ class ActivityService
      */
     private function transformCommentCreated(Activity $log, array $base, $subject, array $properties): ?array
     {
-        if (!$subject instanceof Comment) {
+        if (! $subject instanceof Comment) {
             return null;
         }
 
@@ -190,7 +187,7 @@ class ActivityService
 
         // Determine votable type
         $votableType = $properties['votable_type'] ?? null;
-        if (!$votableType && $subject) {
+        if (! $votableType && $subject) {
             $votableType = get_class($subject);
         }
 
@@ -268,7 +265,7 @@ class ActivityService
             'type' => 'answer',
             'title' => $questionTitle,
             'is_correct' => $isCorrect,
-            'description' => "کاربر '{$base['user_name']}' پاسخ به سوال '{$questionTitle}' را " . ($isCorrect ? 'صحیح' : 'عادی') . ' علامت زد',
+            'description' => "کاربر '{$base['user_name']}' پاسخ به سوال '{$questionTitle}' را ".($isCorrect ? 'صحیح' : 'عادی').' علامت زد',
             'url' => $questionSlug ? "/questions/{$questionSlug}" : null,
         ]);
     }
@@ -276,20 +273,17 @@ class ActivityService
     /**
      * Get Persian month name with year from date
      *
-     * @param Carbon $date
-     * @return string
+     * @param  Carbon  $date
      */
     private function getPersianMonth($date): string
     {
         $carbon = $date instanceof Carbon ? $date : Carbon::parse($date);
+
         return jdate($carbon)->format('F Y');
     }
 
     /**
      * Check if there are more activities available beyond the given offset
-     *
-     * @param int $offset
-     * @return bool
      */
     public function hasMoreActivities(int $offset): bool
     {
@@ -300,10 +294,6 @@ class ActivityService
      * Get activity statistics for a period
      *
      * Returns counts of activities by type within the time period.
-     *
-     * @param int $months
-     * @param int $offset
-     * @return array
      */
     public function getActivityStats(int $months = 3, int $offset = 0): array
     {
@@ -327,8 +317,8 @@ class ActivityService
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'months' => $months,
-                'offset' => $offset
-            ]
+                'offset' => $offset,
+            ],
         ];
 
         return $stats;

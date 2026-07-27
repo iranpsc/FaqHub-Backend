@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Comment extends Model
 {
     use HasFactory;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -20,7 +25,7 @@ class Comment extends Model
         'content',
         'published',
         'published_at',
-        'published_by'
+        'published_by',
     ];
 
     /**
@@ -39,7 +44,7 @@ class Comment extends Model
     /**
      * Get the user that owns the comment.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function user()
     {
@@ -49,7 +54,7 @@ class Comment extends Model
     /**
      * Get the user that published the comment.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function publisher()
     {
@@ -59,7 +64,7 @@ class Comment extends Model
     /**
      * Get the parent commentable model.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphTo
+     * @return MorphTo
      */
     public function commentable()
     {
@@ -77,7 +82,7 @@ class Comment extends Model
     /**
      * Get the upvotes for the comment.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function upVotes()
     {
@@ -87,7 +92,7 @@ class Comment extends Model
     /**
      * Get the downvotes for the comment.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function downVotes()
     {
@@ -97,8 +102,8 @@ class Comment extends Model
     /**
      * Scope a query to include only published comments.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @return Builder
      */
     public function scopePublished($query)
     {
@@ -109,14 +114,13 @@ class Comment extends Model
     /**
      * Scope a query to include visible comments based on user authentication and level.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param \App\Models\User|null $user
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @return Builder
      */
     public function scopeVisible($query, ?User $user)
     {
         // If user is not authenticated, only show published comments
-        if (!$user) {
+        if (! $user) {
             return $query->published();
         }
 
@@ -126,13 +130,13 @@ class Comment extends Model
         // 3. Unpublished comments from users with lower level
         return $query->where(function ($q) use ($user) {
             $q->published()
-              ->orWhere('user_id', $user->id)
-              ->orWhere(function ($subQuery) use ($user) {
-                  $subQuery->where('published', false)
-                           ->whereHas('user', function ($userQuery) use ($user) {
-                               $userQuery->where('level', '<', $user->level);
-                           });
-              });
+                ->orWhere('user_id', $user->id)
+                ->orWhere(function ($subQuery) use ($user) {
+                    $subQuery->where('published', false)
+                        ->whereHas('user', function ($userQuery) use ($user) {
+                            $userQuery->where('level', '<', $user->level);
+                        });
+                });
         });
     }
 }

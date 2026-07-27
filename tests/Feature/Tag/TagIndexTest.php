@@ -10,8 +10,8 @@ use Tests\TestCase;
 
 class TagIndexTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithTags;
+    use RefreshDatabase;
 
     public function test_guest_can_list_tags_with_pagination_meta_and_questions_count(): void
     {

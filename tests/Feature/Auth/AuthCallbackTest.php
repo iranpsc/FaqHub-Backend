@@ -17,8 +17,8 @@ use Tests\TestCase;
 
 class AuthCallbackTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithOAuth;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -56,7 +56,7 @@ class AuthCallbackTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 1);
         $this->assertAuthenticatedAs($user, 'web');
 
-        Bus::assertDispatched(FetchUserLevel::class, function (FetchUserLevel $job) use ($user) {
+        Bus::assertDispatched(FetchUserLevel::class, function (FetchUserLevel $job) {
             return true;
         });
         Notification::assertNothingSent();

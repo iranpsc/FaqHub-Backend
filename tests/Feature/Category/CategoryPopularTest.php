@@ -10,8 +10,8 @@ use Tests\TestCase;
 
 class CategoryPopularTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithCategories;
+    use RefreshDatabase;
 
     public function test_guest_can_list_popular_categories_ordered_by_published_questions_count(): void
     {

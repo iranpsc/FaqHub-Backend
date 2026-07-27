@@ -13,8 +13,8 @@ use Tests\TestCase;
 
 class AnswerToggleCorrectnessTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAnswers;
+    use RefreshDatabase;
 
     public function test_level_four_user_can_mark_answer_as_correct_and_awards_scores(): void
     {

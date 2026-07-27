@@ -14,12 +14,11 @@ class UserUsernameSeeder extends Seeder
     public function run(): void
     {
         User::chunkById(100, function ($users) {
-                foreach ($users as $user) {
-                    $user->update([
-                        'username' => UsernameGenerator::generate($user->name, $user->id),
-                    ]);
-                }
-            });
+            foreach ($users as $user) {
+                $user->update([
+                    'username' => UsernameGenerator::generate($user->name, $user->id),
+                ]);
+            }
+        });
     }
 }
-

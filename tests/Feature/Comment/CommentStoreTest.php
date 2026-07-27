@@ -14,8 +14,8 @@ use Tests\TestCase;
 
 class CommentStoreTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithComments;
+    use RefreshDatabase;
 
     public function test_guest_cannot_create_comment(): void
     {

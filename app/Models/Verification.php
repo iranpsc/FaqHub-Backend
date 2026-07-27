@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Verification extends Model
 {
@@ -16,7 +18,7 @@ class Verification extends Model
     /**
      * Get the user that owns the verification.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function user()
     {
@@ -26,7 +28,7 @@ class Verification extends Model
     /**
      * Get the parent verifiable model.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphTo
+     * @return MorphTo
      */
     public function verifiable()
     {

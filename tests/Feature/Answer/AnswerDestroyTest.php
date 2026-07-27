@@ -10,8 +10,8 @@ use Tests\TestCase;
 
 class AnswerDestroyTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAnswers;
+    use RefreshDatabase;
 
     public function test_owner_can_delete_unpublished_answer(): void
     {

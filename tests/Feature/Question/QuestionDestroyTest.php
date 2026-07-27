@@ -10,8 +10,8 @@ use Tests\TestCase;
 
 class QuestionDestroyTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithQuestions;
+    use RefreshDatabase;
 
     public function test_owner_can_delete_unpublished_question(): void
     {

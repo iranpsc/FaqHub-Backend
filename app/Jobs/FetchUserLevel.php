@@ -17,8 +17,7 @@ class FetchUserLevel implements ShouldQueue
      */
     public function __construct(
         private User $user
-    )
-    {}
+    ) {}
 
     /**
      * Execute the job.
@@ -29,24 +28,26 @@ class FetchUserLevel implements ShouldQueue
 
         $response = Http::get($url);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('Failed to fetch user level', [
                 'email' => $this->user->email,
                 'status' => $response->status(),
                 'response' => $response->body(),
             ]);
+
             return;
         }
 
         $data = $response->json();
-        $level = isset($data['level']['slug']) ? (int)$data['level']['slug'] : null;
-        $score = isset($data['score']) ? (int)$data['score'] : 0;
+        $level = isset($data['level']['slug']) ? (int) $data['level']['slug'] : null;
+        $score = isset($data['score']) ? (int) $data['score'] : 0;
 
         if ($level === null) {
             Log::warning('Level data missing in API response', [
                 'email' => $this->user->email,
                 'response' => $data,
             ]);
+
             return;
         }
 

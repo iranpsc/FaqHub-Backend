@@ -37,7 +37,7 @@ return [
     'oauth' => [
         'client_id' => env('OAUTH_CLIENT_ID'),
         'client_secret' => env('OAUTH_CLIENT_SECRET'),
-        'redirect' => env('APP_URL') . '/auth/callback',
+        'redirect' => env('APP_URL').'/auth/callback',
         'url' => env('OAUTH_SERVER_URL'),
         'app_url' => env('FRONTEND_APP_URL', 'https://faqhub.ir'),
     ],

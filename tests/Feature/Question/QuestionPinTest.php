@@ -10,8 +10,8 @@ use Tests\TestCase;
 
 class QuestionPinTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithQuestions;
+    use RefreshDatabase;
 
     public function test_authenticated_user_can_pin_question(): void
     {

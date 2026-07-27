@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
 class Tag extends Model
@@ -40,7 +41,7 @@ class Tag extends Model
     /**
      * Get the questions associated with the tag.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany
      */
     public function questions()
     {

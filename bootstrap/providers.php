@@ -1,6 +1,9 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use Ybazli\Faker\FakerServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    Ybazli\Faker\FakerServiceProvider::class,
+    AppServiceProvider::class,
+    FakerServiceProvider::class,
 ];

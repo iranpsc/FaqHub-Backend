@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Category>
+ * @extends Factory<Category>
  */
 class CategoryFactory extends Factory
 {
@@ -31,7 +31,7 @@ class CategoryFactory extends Factory
     /**
      * Indicate that the category is a child category.
      *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     * @return Factory
      */
     public function child(?Category $parent = null)
     {

@@ -9,8 +9,8 @@ use Tests\TestCase;
 
 class TagDestroyTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithTags;
+    use RefreshDatabase;
 
     public function test_guest_cannot_delete_tag(): void
     {

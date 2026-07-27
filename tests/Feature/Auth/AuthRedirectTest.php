@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -11,8 +12,8 @@ use Tests\TestCase;
 
 class AuthRedirectTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithOAuth;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -113,7 +114,7 @@ class AuthRedirectTest extends TestCase
 
     public function test_authenticated_web_user_is_blocked_by_guest_middleware(): void
     {
-        \Illuminate\Auth\Middleware\RedirectIfAuthenticated::redirectUsing(fn () => '/');
+        RedirectIfAuthenticated::redirectUsing(fn () => '/');
 
         $user = User::factory()->create();
 

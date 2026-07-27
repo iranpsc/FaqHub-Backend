@@ -21,7 +21,7 @@ class AnswerController extends Controller
         $this->middleware('auth.optional')->only(['index']);
 
         $this->authorizeResource(Answer::class, 'answer', [
-            'except' => ['index', 'store']
+            'except' => ['index', 'store'],
         ]);
     }
 
@@ -43,14 +43,14 @@ class AnswerController extends Controller
                 // Need counts of up/down votes to compute score
                 $query->withCount([
                     'upVotes as upvotes_count',
-                    'downVotes as downvotes_count'
+                    'downVotes as downvotes_count',
                 ])->orderByRaw('(upvotes_count - downvotes_count) DESC')
-                  ->orderByDesc('created_at');
+                    ->orderByDesc('created_at');
                 break;
             case 'comments':
                 $query->withCount('comments')
-                      ->orderByDesc('comments_count')
-                      ->orderByDesc('created_at');
+                    ->orderByDesc('comments_count')
+                    ->orderByDesc('created_at');
                 break;
             case 'oldest':
                 $query->orderBy('created_at', 'asc');
@@ -58,7 +58,7 @@ class AnswerController extends Controller
             case 'correct':
                 // Only correct answers
                 $query->where('is_correct', true)
-                      ->orderByDesc('created_at');
+                    ->orderByDesc('created_at');
                 break;
             case 'newest':
             default:
@@ -134,14 +134,14 @@ class AnswerController extends Controller
         // Award 5 points for answering
         $answer->user->increment('score', 5);
 
-        if (!is_null($answer->question->user)) {
+        if (! is_null($answer->question->user)) {
             $answer->question->user->notify(new QuestionInteractionNotification($user, $answer->question, 'answer'));
         }
 
         return response()->json([
             'success' => true,
             'data' => new AnswerResource($answer),
-            'message' => 'پاسخ با موفقیت منتشر شد'
+            'message' => 'پاسخ با موفقیت منتشر شد',
         ]);
     }
 
@@ -151,7 +151,7 @@ class AnswerController extends Controller
     public function vote(Request $request, Answer $answer)
     {
         $request->validate([
-            'type' => 'required|in:up,down'
+            'type' => 'required|in:up,down',
         ]);
 
         $userId = $request->user()->id;
@@ -164,6 +164,7 @@ class AnswerController extends Controller
 
         if ($existingVote) {
             $answer->load('upVotes', 'downVotes');
+
             return response()->json([
                 'success' => false,
                 'message' => 'شما قبلا به این مورد رای داده‌اید',
@@ -176,7 +177,7 @@ class AnswerController extends Controller
         $answer->votes()->create([
             'user_id' => $userId,
             'type' => $voteType,
-            'last_voted_at' => now()
+            'last_voted_at' => now(),
         ]);
 
         // Log voting
@@ -194,7 +195,7 @@ class AnswerController extends Controller
         return response()->json([
             'upvotes' => $answer->upVotes->count(),
             'downvotes' => $answer->downVotes->count(),
-            'user_vote' => $voteType
+            'user_vote' => $voteType,
         ]);
     }
 
@@ -207,24 +208,24 @@ class AnswerController extends Controller
         $currentCorrectness = $answer->is_correct; // boolean
 
         // Determine intended action based on front-end checkbox toggle behavior
-    $action = $currentCorrectness ? 'markAsNormal' : 'markAsCorrect';
+        $action = $currentCorrectness ? 'markAsNormal' : 'markAsCorrect';
 
         $this->authorize('toggleCorrectness', [$answer, $action]);
 
         // Create mark record (audit) with resulting state
         $user->correctnessMarks()->create([
             'answer_id' => $answer->id,
-            'is_correct' => !$currentCorrectness,
+            'is_correct' => ! $currentCorrectness,
         ]);
 
         // Update answer correctness
-        $answer->update(['is_correct' => !$currentCorrectness]);
+        $answer->update(['is_correct' => ! $currentCorrectness]);
 
         // Log correctness marking
-        $this->activityLogger->logAnswerCorrectness($answer, $user, !$currentCorrectness);
+        $this->activityLogger->logAnswerCorrectness($answer, $user, ! $currentCorrectness);
 
         // Score adjustments (only affect answer owner)
-        if (!$currentCorrectness) { // now became correct
+        if (! $currentCorrectness) { // now became correct
             $answer->user->increment('score', 10);
             $user->increment('score', 2); // marker reward
         } else { // now became normal
@@ -236,7 +237,7 @@ class AnswerController extends Controller
             'success' => true,
             'message' => $answer->is_correct ? 'پاسخ به صحیح تغییر داده شد' : 'پاسخ به عادی تغییر داده شد.',
             'is_correct' => $answer->is_correct,
-            'data' => new AnswerResource($answer)
+            'data' => new AnswerResource($answer),
         ]);
     }
 }

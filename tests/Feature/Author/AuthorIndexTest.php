@@ -13,8 +13,8 @@ use Tests\TestCase;
 
 class AuthorIndexTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAuthors;
+    use RefreshDatabase;
 
     public function test_guest_can_list_authors_with_pagination_meta_and_activity_fields(): void
     {

@@ -13,8 +13,8 @@ use Tests\TestCase;
 
 class DashboardActiveUsersTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithDashboard;
+    use RefreshDatabase;
 
     public function test_guest_can_list_active_users_ordered_by_score_desc(): void
     {

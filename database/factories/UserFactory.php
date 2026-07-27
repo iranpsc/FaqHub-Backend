@@ -2,11 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
+use App\Services\UsernameGenerator;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
@@ -26,7 +27,7 @@ class UserFactory extends Factory
 
         return [
             'name' => $name,
-            'username' => \App\Services\UsernameGenerator::generate($name),
+            'username' => UsernameGenerator::generate($name),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'mobile' => fake()->phoneNumber(),

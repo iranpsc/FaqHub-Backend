@@ -10,8 +10,8 @@ use Tests\TestCase;
 
 class QuestionSearchTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithQuestions;
+    use RefreshDatabase;
 
     public function test_guest_can_search_published_questions_by_title(): void
     {

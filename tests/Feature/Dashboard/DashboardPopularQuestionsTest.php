@@ -11,8 +11,8 @@ use Tests\TestCase;
 
 class DashboardPopularQuestionsTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithDashboard;
+    use RefreshDatabase;
 
     public function test_guest_can_list_popular_questions_ordered_by_views_then_votes(): void
     {

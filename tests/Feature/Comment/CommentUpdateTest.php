@@ -11,8 +11,8 @@ use Tests\TestCase;
 
 class CommentUpdateTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithComments;
+    use RefreshDatabase;
 
     public function test_owner_can_update_unpublished_comment(): void
     {

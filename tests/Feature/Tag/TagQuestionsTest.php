@@ -9,8 +9,8 @@ use Tests\TestCase;
 
 class TagQuestionsTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithTags;
+    use RefreshDatabase;
 
     public function test_guest_can_list_published_questions_for_tag_by_slug(): void
     {

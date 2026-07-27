@@ -3,7 +3,6 @@
 namespace Tests\Feature\Question;
 
 use App\Models\Category;
-use App\Models\Question;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,8 +13,8 @@ use Tests\TestCase;
 
 class QuestionUpdateTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithQuestions;
+    use RefreshDatabase;
 
     public function test_owner_can_update_unpublished_question_and_regenerate_slug_on_title_change(): void
     {

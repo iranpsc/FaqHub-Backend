@@ -10,8 +10,8 @@ use Tests\TestCase;
 
 class QuestionFeatureActionTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithQuestions;
+    use RefreshDatabase;
 
     public function test_level_four_user_can_feature_another_users_published_question(): void
     {

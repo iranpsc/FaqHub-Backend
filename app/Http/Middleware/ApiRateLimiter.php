@@ -19,11 +19,13 @@ class ApiRateLimiter
     /**
      * Handle an incoming request with rate limiting.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next, string $type = 'api'): Response
     {
-        if($request->ip() == '217.218.238.194') return $next($request);
+        if ($request->ip() == '217.218.238.194') {
+            return $next($request);
+        }
 
         $key = $this->resolveRequestSignature($request, $type);
         $limits = $this->getLimits($type);
@@ -51,7 +53,7 @@ class ApiRateLimiter
         // Use user ID if authenticated, otherwise use IP
         $identifier = $request->user()?->id ?? $request->ip();
 
-        return sha1($type . '|' . $identifier);
+        return sha1($type.'|'.$identifier);
     }
 
     /**
@@ -118,4 +120,3 @@ class ApiRateLimiter
         return $response;
     }
 }
-

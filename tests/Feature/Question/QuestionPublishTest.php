@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Question;
 
-use App\Models\Question;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -11,8 +10,8 @@ use Tests\TestCase;
 
 class QuestionPublishTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithQuestions;
+    use RefreshDatabase;
 
     public function test_higher_level_user_can_publish_lower_level_users_question_and_earns_score(): void
     {

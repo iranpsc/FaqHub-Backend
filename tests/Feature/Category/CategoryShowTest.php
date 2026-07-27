@@ -8,8 +8,8 @@ use Tests\TestCase;
 
 class CategoryShowTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithCategories;
+    use RefreshDatabase;
 
     public function test_guest_can_show_category_by_slug_with_children(): void
     {

@@ -5,7 +5,7 @@ namespace Tests\Feature\Author;
 use App\Models\Answer;
 use App\Models\Comment;
 use App\Models\Question;
-use App\Models\User;
+use App\Models\Tag;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -14,8 +14,8 @@ use Tests\TestCase;
 
 class AuthorQuestionsTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAuthors;
+    use RefreshDatabase;
 
     public function test_guest_can_list_published_questions_authored_by_user(): void
     {
@@ -253,7 +253,7 @@ class AuthorQuestionsTest extends TestCase
     {
         $author = $this->createAuthor(['username' => 'relations']);
         $question = $this->createPublishedQuestionFor($author);
-        $question->tags()->attach(\App\Models\Tag::factory()->create());
+        $question->tags()->attach(Tag::factory()->create());
 
         $payload = $this->getJson($this->authorQuestionsUrl($author))
             ->assertOk()

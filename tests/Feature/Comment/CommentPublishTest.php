@@ -16,8 +16,8 @@ use TypeError;
 
 class CommentPublishTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithComments;
+    use RefreshDatabase;
 
     public function test_level_two_or_higher_can_publish_comment_on_question_and_awards_scores(): void
     {

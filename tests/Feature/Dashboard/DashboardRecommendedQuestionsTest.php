@@ -3,7 +3,6 @@
 namespace Tests\Feature\Dashboard;
 
 use App\Models\Question;
-use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -12,8 +11,8 @@ use Tests\TestCase;
 
 class DashboardRecommendedQuestionsTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithDashboard;
+    use RefreshDatabase;
 
     public function test_guest_can_list_recommended_questions_with_expected_shape(): void
     {

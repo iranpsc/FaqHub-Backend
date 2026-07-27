@@ -10,8 +10,8 @@ use Tests\TestCase;
 
 class CommentDestroyTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithComments;
+    use RefreshDatabase;
 
     public function test_owner_can_delete_unpublished_comment(): void
     {

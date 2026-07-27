@@ -4,6 +4,7 @@ namespace Tests\Unit\Models;
 
 use App\Models\Answer;
 use App\Models\Question;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -60,14 +61,14 @@ class QuestionTest extends TestCase
 
     public function test_visible_scope_for_guests_and_authenticated_users(): void
     {
-        $low = \App\Models\User::factory()->create(['level' => 1]);
-        $high = \App\Models\User::factory()->create(['level' => 3]);
+        $low = User::factory()->create(['level' => 1]);
+        $high = User::factory()->create(['level' => 3]);
 
         $published = Question::factory()->published()->create(['user_id' => $low->id]);
         $ownDraft = Question::factory()->unpublished()->create(['user_id' => $high->id]);
         $lowerDraft = Question::factory()->unpublished()->create(['user_id' => $low->id]);
         $peerDraft = Question::factory()->unpublished()->create([
-            'user_id' => \App\Models\User::factory()->create(['level' => 3])->id,
+            'user_id' => User::factory()->create(['level' => 3])->id,
         ]);
 
         $guestIds = Question::visible(null)->pluck('id');

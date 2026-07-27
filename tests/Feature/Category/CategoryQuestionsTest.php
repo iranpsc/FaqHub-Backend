@@ -9,8 +9,8 @@ use Tests\TestCase;
 
 class CategoryQuestionsTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithCategories;
+    use RefreshDatabase;
 
     public function test_guest_can_list_questions_for_category_by_slug(): void
     {

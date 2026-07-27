@@ -4,7 +4,6 @@ namespace Tests\Feature\Answer;
 
 use App\Models\Answer;
 use App\Models\Comment;
-use App\Models\Question;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -13,8 +12,8 @@ use Tests\TestCase;
 
 class AnswerIndexTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAnswers;
+    use RefreshDatabase;
 
     public function test_guest_can_list_published_answers_with_pagination_meta(): void
     {

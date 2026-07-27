@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\QuestionResource;
+use App\Models\Question;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Http\Resources\QuestionResource;
 
 class AuthorController extends Controller
 {
-
     public function __construct()
     {
         $this->middleware('auth.optional');
@@ -18,9 +18,6 @@ class AuthorController extends Controller
 
     /**
      * Get paginated list of authors/users with their activity statistics
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -39,8 +36,8 @@ class AuthorController extends Controller
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhere('username', 'like', "%{$search}%");
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('username', 'like', "%{$search}%");
                 });
             }
 
@@ -112,22 +109,19 @@ class AuthorController extends Controller
                     'last' => $users->url($users->lastPage()),
                     'prev' => $users->previousPageUrl(),
                     'next' => $users->nextPageUrl(),
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت لیست نویسندگان',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Get single author details with their activity
-     *
-     * @param User $author
-     * @return JsonResponse
      */
     public function show(User $author): JsonResponse
     {
@@ -141,7 +135,7 @@ class AuthorController extends Controller
                 },
                 'comments' => function ($query) {
                     $query->published();
-                }
+                },
             ]);
 
             $formattedUser = [
@@ -184,11 +178,11 @@ class AuthorController extends Controller
             $perPage = (int) $request->input('per_page', 10);
             $type = $request->input('type', 'questions');
 
-            if (!in_array($type, ['questions', 'answers', 'comments'], true)) {
+            if (! in_array($type, ['questions', 'answers', 'comments'], true)) {
                 $type = 'questions';
             }
 
-            $query = \App\Models\Question::query()
+            $query = Question::query()
                 ->with(['user', 'category', 'tags'])
                 ->withCount(['votes', 'answers'])
                 ->published();
@@ -223,7 +217,7 @@ class AuthorController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت سوالات نویسنده',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

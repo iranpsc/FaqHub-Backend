@@ -12,8 +12,8 @@ use Tests\TestCase;
 
 class AuthorShowTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAuthors;
+    use RefreshDatabase;
 
     public function test_guest_can_view_author_by_username(): void
     {

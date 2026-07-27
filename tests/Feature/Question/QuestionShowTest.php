@@ -14,8 +14,8 @@ use Tests\TestCase;
 
 class QuestionShowTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithQuestions;
+    use RefreshDatabase;
 
     public function test_guest_can_show_published_question_by_slug_and_increments_views(): void
     {

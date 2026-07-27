@@ -13,8 +13,8 @@ use Tests\TestCase;
 
 class DashboardStatsTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithDashboard;
+    use RefreshDatabase;
 
     public function test_guest_can_retrieve_dashboard_stats_with_expected_shape(): void
     {

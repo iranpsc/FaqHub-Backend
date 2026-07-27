@@ -14,8 +14,8 @@ use Tests\TestCase;
 
 class AnswerPublishTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAnswers;
+    use RefreshDatabase;
 
     public function test_higher_level_user_can_publish_lower_level_users_answer_and_awards_scores(): void
     {

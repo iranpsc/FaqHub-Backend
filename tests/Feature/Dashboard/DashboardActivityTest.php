@@ -14,8 +14,8 @@ use Tests\TestCase;
 
 class DashboardActivityTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithDashboard;
+    use RefreshDatabase;
 
     public function test_guest_can_retrieve_activity_feed_with_expected_shape(): void
     {

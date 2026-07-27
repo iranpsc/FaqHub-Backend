@@ -12,8 +12,8 @@ use Tests\TestCase;
 
 class CommentIndexTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithComments;
+    use RefreshDatabase;
 
     public function test_guest_can_list_published_question_comments_with_pagination_meta(): void
     {

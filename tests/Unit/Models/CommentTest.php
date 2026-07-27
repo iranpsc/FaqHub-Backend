@@ -6,7 +6,9 @@ use App\Models\Answer;
 use App\Models\Comment;
 use App\Models\Question;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class CommentTest extends TestCase
@@ -61,9 +63,9 @@ class CommentTest extends TestCase
         $this->assertTrue($comment->user->is($author));
         $this->assertTrue($comment->publisher->is($publisher));
         $this->assertTrue($comment->commentable->is($question));
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class, $comment->votes());
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class, $comment->upVotes());
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class, $comment->downVotes());
+        $this->assertInstanceOf(MorphMany::class, $comment->votes());
+        $this->assertInstanceOf(MorphMany::class, $comment->upVotes());
+        $this->assertInstanceOf(MorphMany::class, $comment->downVotes());
     }
 
     public function test_commentable_can_be_answer(): void
@@ -80,7 +82,7 @@ class CommentTest extends TestCase
         $comment = Comment::factory()->published()->create();
 
         $this->assertTrue($comment->published);
-        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $comment->published_at);
+        $this->assertInstanceOf(Carbon::class, $comment->published_at);
     }
 
     public function test_up_and_down_votes_scopes_filter_by_type(): void

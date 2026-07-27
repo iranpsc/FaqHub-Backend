@@ -15,14 +15,12 @@ class DashboardController extends Controller
     /**
      * Get dashboard statistics
      * Optimized: Uses a single query with subqueries instead of 4 separate queries
-     *
-     * @return JsonResponse
      */
     public function stats(): JsonResponse
     {
         try {
             // Single query with all counts as subqueries for better performance
-            $stats = DB::selectOne("
+            $stats = DB::selectOne('
                 SELECT
                     (SELECT COUNT(*) FROM questions WHERE published = 1 AND published_at IS NOT NULL) as totalQuestions,
                     (SELECT COUNT(*) FROM answers WHERE published = 1) as totalAnswers,
@@ -30,7 +28,7 @@ class DashboardController extends Controller
                     (SELECT COUNT(DISTINCT q.id) FROM questions q
                      INNER JOIN answers a ON q.id = a.question_id
                      WHERE a.is_correct = 1) as solvedQuestions
-            ");
+            ');
 
             return response()->json([
                 'success' => true,
@@ -40,13 +38,13 @@ class DashboardController extends Controller
                     'totalUsers' => (int) $stats->totalUsers,
                     'solvedQuestions' => (int) $stats->solvedQuestions,
                 ],
-                'message' => 'آمار با موفقیت دریافت شد'
+                'message' => 'آمار با موفقیت دریافت شد',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت آمار',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -54,9 +52,6 @@ class DashboardController extends Controller
     /**
      * Get recommended questions (random selection)
      * Optimized: Uses efficient random selection with indexed columns
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function recommendedQuestions(Request $request): JsonResponse
     {
@@ -96,23 +91,23 @@ class DashboardController extends Controller
                             'id' => $question->category->id,
                             'name' => $question->category->name,
                         ] : null,
-                        'tags' => $question->tags->map(fn($tag) => [
+                        'tags' => $question->tags->map(fn ($tag) => [
                             'id' => $tag->id,
                             'name' => $tag->name,
-                        ])
+                        ]),
                     ];
                 });
 
             return response()->json([
                 'success' => true,
                 'data' => $questions,
-                'message' => 'سوالات پیشنهادی با موفقیت دریافت شد'
+                'message' => 'سوالات پیشنهادی با موفقیت دریافت شد',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت سوالات پیشنهادی',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -120,9 +115,6 @@ class DashboardController extends Controller
     /**
      * Get popular questions based on views and period
      * Optimized: Uses selective eager loading and efficient sorting
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function popularQuestions(Request $request): JsonResponse
     {
@@ -178,23 +170,23 @@ class DashboardController extends Controller
                             'id' => $question->category->id,
                             'name' => $question->category->name,
                         ] : null,
-                        'tags' => $question->tags->map(fn($tag) => [
+                        'tags' => $question->tags->map(fn ($tag) => [
                             'id' => $tag->id,
                             'name' => $tag->name,
-                        ])
+                        ]),
                     ];
                 });
 
             return response()->json([
                 'success' => true,
                 'data' => $questions,
-                'message' => 'سوالات محبوب با موفقیت دریافت شد'
+                'message' => 'سوالات محبوب با موفقیت دریافت شد',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت سوالات محبوب',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -202,9 +194,6 @@ class DashboardController extends Controller
     /**
      * Get most active users based on score and recent activity
      * Optimized: Uses subqueries instead of withCount for better performance
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function activeUsers(Request $request): JsonResponse
     {
@@ -216,12 +205,12 @@ class DashboardController extends Controller
 
             // Use subqueries for counts - more efficient than withCount for ordering
             $users = User::select([
-                    'users.id',
-                    'users.name',
-                    'users.username',
-                    'users.image',
-                    'users.score',
-                ])
+                'users.id',
+                'users.name',
+                'users.username',
+                'users.image',
+                'users.score',
+            ])
                 ->selectSub(
                     DB::table('questions')->selectRaw('COUNT(*)')
                         ->whereColumn('questions.user_id', 'users.id'),
@@ -257,13 +246,13 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $users,
-                'message' => 'کاربران فعال با موفقیت دریافت شد'
+                'message' => 'کاربران فعال با موفقیت دریافت شد',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت کاربران فعال',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -274,9 +263,6 @@ class DashboardController extends Controller
      * Query Parameters:
      * - limit (int): Number of activities to return (default: 30)
      * - offset (int): Number of activities to skip (default: 0)
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function activity(Request $request): JsonResponse
     {
@@ -288,7 +274,7 @@ class DashboardController extends Controller
             $limit = $validated['limit'] ?? 30;
             $offset = $validated['offset'] ?? 0;
 
-            $activityService = new ActivityService();
+            $activityService = new ActivityService;
             $result = $activityService->getActivities($limit, $offset);
 
             return response()->json([
@@ -296,13 +282,13 @@ class DashboardController extends Controller
                 'data' => $result['activities'],
                 'grouped_data' => $result['grouped_activities'],
                 'pagination' => $result['pagination'],
-                'message' => 'فعالیت‌ها با موفقیت دریافت شد'
+                'message' => 'فعالیت‌ها با موفقیت دریافت شد',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت فعالیت‌ها',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

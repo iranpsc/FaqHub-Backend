@@ -11,8 +11,8 @@ use Tests\TestCase;
 
 class AnswerSecurityTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithAnswers;
+    use RefreshDatabase;
 
     public function test_mass_assignment_cannot_override_user_id_or_published_on_store(): void
     {

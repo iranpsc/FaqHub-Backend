@@ -12,8 +12,8 @@ use Tests\TestCase;
 
 class CommentVoteTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithComments;
+    use RefreshDatabase;
 
     public function test_authenticated_user_can_upvote_comment(): void
     {

@@ -1,11 +1,12 @@
 <?php
 
+use App\Http\Middleware\ApiRateLimiter;
+use App\Http\Middleware\OptionalAuthSanctum;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Session\Middleware\StartSession;
-use Illuminate\Console\Scheduling\Schedule;
-use App\Jobs\GenerateSitemaps;
 use Sentry\Laravel\Integration;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -18,10 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(StartSession::class);
-        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
-        $middleware->appendToGroup('api', \App\Http\Middleware\ApiRateLimiter::class);
+        $middleware->append(SecurityHeaders::class);
+        $middleware->appendToGroup('api', ApiRateLimiter::class);
         $middleware->alias([
-            'auth.optional' => \App\Http\Middleware\OptionalAuthSanctum::class,
+            'auth.optional' => OptionalAuthSanctum::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

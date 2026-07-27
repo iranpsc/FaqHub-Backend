@@ -14,8 +14,8 @@ use Tests\TestCase;
 
 class QuestionIndexTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithQuestions;
+    use RefreshDatabase;
 
     public function test_guest_can_list_published_questions_with_pagination_meta(): void
     {

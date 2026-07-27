@@ -11,8 +11,8 @@ use Tests\TestCase;
 
 class CommentSecurityTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithComments;
+    use RefreshDatabase;
 
     public function test_mass_assignment_cannot_override_user_id_or_published_on_store(): void
     {
@@ -73,7 +73,7 @@ class CommentSecurityTest extends TestCase
         $question = $this->createPublishedQuestion();
         $this->createCommentOnQuestion($question);
 
-        $this->getJson("/api/questions/1%20OR%201=1/comments")
+        $this->getJson('/api/questions/1%20OR%201=1/comments')
             ->assertNotFound();
 
         $this->assertDatabaseCount('comments', 1);

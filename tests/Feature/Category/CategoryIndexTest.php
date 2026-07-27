@@ -10,8 +10,8 @@ use Tests\TestCase;
 
 class CategoryIndexTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithCategories;
+    use RefreshDatabase;
 
     public function test_guest_can_list_categories_with_pagination_meta_and_questions_count(): void
     {

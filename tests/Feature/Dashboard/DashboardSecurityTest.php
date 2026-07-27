@@ -13,8 +13,8 @@ use Tests\TestCase;
 
 class DashboardSecurityTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithDashboard;
+    use RefreshDatabase;
 
     #[DataProvider('publicEndpointsProvider')]
     public function test_all_dashboard_endpoints_are_publicly_readable(string $uri): void

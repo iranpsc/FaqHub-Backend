@@ -196,7 +196,7 @@ class UserSettingsTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->postJson('/api/user/settings', [
-            'login_notification_enabled' => "1; DROP TABLE users;--",
+            'login_notification_enabled' => '1; DROP TABLE users;--',
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['login_notification_enabled']);

@@ -12,8 +12,8 @@ use Tests\TestCase;
 
 class CategorySecurityTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithCategories;
+    use RefreshDatabase;
 
     public function test_mass_assignment_cannot_override_id_or_timestamps_on_store(): void
     {

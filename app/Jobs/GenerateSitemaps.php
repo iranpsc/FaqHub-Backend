@@ -18,7 +18,7 @@ use Spatie\Sitemap\SitemapIndex;
 
 class GenerateSitemaps implements ShouldQueue
 {
-    use Queueable, Dispatchable;
+    use Dispatchable, Queueable;
 
     /**
      * Maximum number of links per sitemap file.
@@ -57,9 +57,9 @@ class GenerateSitemaps implements ShouldQueue
         if (! empty($this->generatedFiles)) {
             $index = SitemapIndex::create();
             foreach ($this->generatedFiles as $relativeFile) {
-                $index->add($baseUrl . '/sitemap/' . ltrim($relativeFile, '/'));
+                $index->add($baseUrl.'/sitemap/'.ltrim($relativeFile, '/'));
             }
-            $index->writeToFile($targetDir . DIRECTORY_SEPARATOR . 'sitemap.xml');
+            $index->writeToFile($targetDir.DIRECTORY_SEPARATOR.'sitemap.xml');
             $this->generatedFiles[] = 'sitemap.xml';
         }
 
@@ -74,7 +74,7 @@ class GenerateSitemaps implements ShouldQueue
         try {
             $disk = Storage::disk('ftp');
             foreach ($this->generatedFiles as $relativeFile) {
-                $localPath = $targetDir . DIRECTORY_SEPARATOR . $relativeFile;
+                $localPath = $targetDir.DIRECTORY_SEPARATOR.$relativeFile;
                 if (! File::exists($localPath)) {
                     continue;
                 }
@@ -91,7 +91,7 @@ class GenerateSitemaps implements ShouldQueue
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('Failed to upload sitemaps to FTP: ' . $e->getMessage(), [
+            Log::error('Failed to upload sitemaps to FTP: '.$e->getMessage(), [
                 'exception' => $e,
             ]);
             throw $e;
@@ -108,7 +108,7 @@ class GenerateSitemaps implements ShouldQueue
                 ->select(['id', 'slug', 'updated_at']),
             'questions',
             fn ($question, string $baseUrl): array => [
-                $baseUrl . '/questions/' . ltrim((string) $question->slug, '/'),
+                $baseUrl.'/questions/'.ltrim((string) $question->slug, '/'),
                 $question->updated_at,
             ],
             alwaysNumberParts: true,
@@ -123,7 +123,7 @@ class GenerateSitemaps implements ShouldQueue
             Category::query()->select(['id', 'slug', 'updated_at']),
             'categories',
             fn ($category, string $baseUrl): array => [
-                $baseUrl . '/categories/' . ltrim((string) $category->slug, '/'),
+                $baseUrl.'/categories/'.ltrim((string) $category->slug, '/'),
                 $category->updated_at,
             ],
         );
@@ -139,7 +139,7 @@ class GenerateSitemaps implements ShouldQueue
                 ->select(['id', 'slug', 'updated_at']),
             'tags',
             fn ($tag, string $baseUrl): array => [
-                $baseUrl . '/tags/' . ltrim((string) $tag->slug, '/'),
+                $baseUrl.'/tags/'.ltrim((string) $tag->slug, '/'),
                 $tag->updated_at,
             ],
         );
@@ -155,7 +155,7 @@ class GenerateSitemaps implements ShouldQueue
                 ->select(['id', 'username', 'updated_at']),
             'authors',
             fn ($user, string $baseUrl): array => [
-                $baseUrl . '/authors/' . rawurlencode((string) $user->username),
+                $baseUrl.'/authors/'.rawurlencode((string) $user->username),
                 $user->updated_at,
             ],
         );
@@ -184,7 +184,7 @@ class GenerateSitemaps implements ShouldQueue
         foreach ($query->orderBy('id')->lazyById(self::LAZY_CHUNK_SIZE) as $record) {
             if ($linksInCurrentFile === 0) {
                 $currentFile = "{$filenamePrefix}-sitemap-{$part}.xml";
-                $handle = $this->openSitemapFile($targetDir . DIRECTORY_SEPARATOR . $currentFile);
+                $handle = $this->openSitemapFile($targetDir.DIRECTORY_SEPARATOR.$currentFile);
             }
 
             [$loc, $lastMod] = $urlBuilder($record, $baseUrl);
@@ -211,8 +211,8 @@ class GenerateSitemaps implements ShouldQueue
         if (! $alwaysNumberParts && count($filesGenerated) === 1 && $part === 1) {
             $numbered = "{$filenamePrefix}-sitemap-1.xml";
             $simple = "{$filenamePrefix}-sitemap.xml";
-            $numberedPath = $targetDir . DIRECTORY_SEPARATOR . $numbered;
-            $simplePath = $targetDir . DIRECTORY_SEPARATOR . $simple;
+            $numberedPath = $targetDir.DIRECTORY_SEPARATOR.$numbered;
+            $simplePath = $targetDir.DIRECTORY_SEPARATOR.$simple;
 
             if (File::exists($numberedPath)) {
                 File::move($numberedPath, $simplePath);
@@ -234,8 +234,8 @@ class GenerateSitemaps implements ShouldQueue
             throw new \RuntimeException("Unable to open sitemap file for writing: {$path}");
         }
 
-        fwrite($handle, '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL);
-        fwrite($handle, '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . PHP_EOL);
+        fwrite($handle, '<?xml version="1.0" encoding="UTF-8"?>'.PHP_EOL);
+        fwrite($handle, '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'.PHP_EOL);
 
         return $handle;
     }
@@ -245,14 +245,14 @@ class GenerateSitemaps implements ShouldQueue
      */
     private function writeSitemapUrl($handle, string $loc, ?DateTimeInterface $lastMod): void
     {
-        fwrite($handle, '  <url>' . PHP_EOL);
-        fwrite($handle, '    <loc>' . htmlspecialchars($loc, ENT_XML1 | ENT_COMPAT, 'UTF-8') . '</loc>' . PHP_EOL);
+        fwrite($handle, '  <url>'.PHP_EOL);
+        fwrite($handle, '    <loc>'.htmlspecialchars($loc, ENT_XML1 | ENT_COMPAT, 'UTF-8').'</loc>'.PHP_EOL);
 
         if ($lastMod !== null) {
-            fwrite($handle, '    <lastmod>' . $lastMod->format(DateTimeInterface::ATOM) . '</lastmod>' . PHP_EOL);
+            fwrite($handle, '    <lastmod>'.$lastMod->format(DateTimeInterface::ATOM).'</lastmod>'.PHP_EOL);
         }
 
-        fwrite($handle, '  </url>' . PHP_EOL);
+        fwrite($handle, '  </url>'.PHP_EOL);
     }
 
     /**
@@ -260,7 +260,7 @@ class GenerateSitemaps implements ShouldQueue
      */
     private function closeSitemapFile($handle): void
     {
-        fwrite($handle, '</urlset>' . PHP_EOL);
+        fwrite($handle, '</urlset>'.PHP_EOL);
         fclose($handle);
     }
 }

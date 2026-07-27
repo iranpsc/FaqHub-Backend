@@ -11,8 +11,8 @@ use Tests\TestCase;
 
 class CategoryStoreTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithCategories;
+    use RefreshDatabase;
 
     public function test_guest_cannot_create_category(): void
     {

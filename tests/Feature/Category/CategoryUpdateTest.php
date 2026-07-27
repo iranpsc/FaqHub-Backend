@@ -10,8 +10,8 @@ use Tests\TestCase;
 
 class CategoryUpdateTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithCategories;
+    use RefreshDatabase;
 
     public function test_guest_cannot_update_category(): void
     {

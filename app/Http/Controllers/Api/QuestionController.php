@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreQuestionRequest;
 use App\Http\Requests\UpdateQuestionRequest;
 use App\Http\Resources\QuestionResource;
 use App\Models\Question;
+use App\Models\Tag;
 use App\Services\ActivityLogger;
 use App\Services\QuestionFilterService;
 use Illuminate\Http\Request;
-use App\Http\Requests\StoreQuestionRequest;
 
 class QuestionController extends Controller
 {
@@ -21,7 +22,7 @@ class QuestionController extends Controller
         $this->middleware('auth:sanctum')->except(['search', 'index', 'show']);
 
         $this->authorizeResource(Question::class, 'question', [
-            'except' => ['search', 'index', 'show']
+            'except' => ['search', 'index', 'show'],
         ]);
     }
 
@@ -31,6 +32,7 @@ class QuestionController extends Controller
     public function index(Request $request)
     {
         $questions = $this->questionFilterService->getPaginatedQuestions($request, 10);
+
         return QuestionResource::collection($questions);
     }
 
@@ -59,10 +61,10 @@ class QuestionController extends Controller
                 },
                 'comments as unpublished_comments_count' => function ($query) {
                     $query->where('published', false);
-                }
+                },
             ])
             ->published()
-            ->where('title', 'like', '%' . $query . '%')
+            ->where('title', 'like', '%'.$query.'%')
             ->orderByDesc('views')
             ->orderByDesc('created_at')
             ->limit($limit)
@@ -71,7 +73,7 @@ class QuestionController extends Controller
         return response()->json([
             'success' => true,
             'data' => QuestionResource::collection($questions),
-            'message' => 'جستجو با موفقیت انجام شد'
+            'message' => 'جستجو با موفقیت انجام شد',
         ]);
     }
 
@@ -129,7 +131,7 @@ class QuestionController extends Controller
 
     private function loadPinStatus(Question $question, $user): void
     {
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
@@ -145,7 +147,7 @@ class QuestionController extends Controller
 
     private function loadFeatureStatus(Question $question, $user): void
     {
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
@@ -167,7 +169,7 @@ class QuestionController extends Controller
             'tags',
             'upVotes',
             'downVotes',
-            'comments'
+            'comments',
         ])->loadCount([
             'votes',
             'upVotes',
@@ -179,7 +181,7 @@ class QuestionController extends Controller
             },
             'comments as unpublished_comments_count' => function ($query) {
                 $query->where('published', false);
-            }
+            },
         ]);
     }
 
@@ -245,7 +247,7 @@ class QuestionController extends Controller
         return response()->json([
             'success' => true,
             'data' => new QuestionResource($question),
-            'message' => 'سوال با موفقیت منتشر شد'
+            'message' => 'سوال با موفقیت منتشر شد',
         ]);
     }
 
@@ -255,7 +257,7 @@ class QuestionController extends Controller
     public function vote(Request $request, Question $question)
     {
         $request->validate([
-            'type' => 'required|in:up,down'
+            'type' => 'required|in:up,down',
         ]);
 
         $userId = $request->user()->id;
@@ -279,7 +281,7 @@ class QuestionController extends Controller
         $question->votes()->create([
             'user_id' => $userId,
             'type' => $voteType,
-            'last_voted_at' => now()
+            'last_voted_at' => now(),
         ]);
 
         // Log voting
@@ -297,7 +299,7 @@ class QuestionController extends Controller
         return response()->json([
             'upvotes' => $question->upVotes->count(),
             'downvotes' => $question->downVotes->count(),
-            'user_vote' => $voteType
+            'user_vote' => $voteType,
         ]);
     }
 
@@ -319,14 +321,14 @@ class QuestionController extends Controller
         }
 
         $user->pinnedQuestions()->attach($question->id, [
-            'pinned_at' => now()
+            'pinned_at' => now(),
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'سوال با موفقیت پین شد',
             'is_pinned_by_user' => true,
-            'pinned_at' => now()->toISOString()
+            'pinned_at' => now()->toISOString(),
         ]);
     }
 
@@ -343,7 +345,7 @@ class QuestionController extends Controller
             'success' => true,
             'message' => 'پین سوال برداشته شد',
             'is_pinned_by_user' => false,
-            'pinned_at' => null
+            'pinned_at' => null,
         ]);
     }
 
@@ -359,7 +361,7 @@ class QuestionController extends Controller
         $user->featuredQuestions()->create([
             'question_id' => $question->id,
             'featured_at' => now(),
-            'type' => 'featured'
+            'type' => 'featured',
         ]);
 
         // Update question's featured status
@@ -372,7 +374,7 @@ class QuestionController extends Controller
             'success' => true,
             'message' => 'سوال با موفقیت ویژه شد',
             'is_featured_by_user' => true,
-            'featured_at' => now()->toISOString()
+            'featured_at' => now()->toISOString(),
         ]);
     }
 
@@ -390,7 +392,7 @@ class QuestionController extends Controller
         $user->unfeaturedQuestions()->create([
             'question_id' => $question->id,
             'featured_at' => now(),
-            'type' => 'unfeatured'
+            'type' => 'unfeatured',
         ]);
 
         // Log unfeaturing
@@ -400,14 +402,13 @@ class QuestionController extends Controller
             'success' => true,
             'message' => 'ویژگی سوال برداشته شد',
             'is_featured_by_user' => $user->featuredQuestions()->where('question_id', $question->id)->exists(),
-            'featured_at' => null
+            'featured_at' => null,
         ]);
     }
 
     /**
      * Process tags array to handle both existing and new tags
      *
-     * @param array $tags
      * @return array Array of tag IDs
      */
     private function processTags(array $tags): array
@@ -418,15 +419,15 @@ class QuestionController extends Controller
             if (isset($tag['id']) && is_numeric($tag['id'])) {
                 // Existing tag
                 $tagIds[] = $tag['id'];
-            } elseif (isset($tag['name']) && !empty($tag['name'])) {
+            } elseif (isset($tag['name']) && ! empty($tag['name'])) {
                 // New tag - create it if it doesn't exist
                 $tagName = trim($tag['name']);
-                $existingTag = \App\Models\Tag::where('name', $tagName)->first();
+                $existingTag = Tag::where('name', $tagName)->first();
 
                 if ($existingTag) {
                     $tagIds[] = $existingTag->id;
                 } else {
-                    $newTag = \App\Models\Tag::create(['name' => $tagName]);
+                    $newTag = Tag::create(['name' => $tagName]);
                     $tagIds[] = $newTag->id;
                 }
             }

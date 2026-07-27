@@ -9,10 +9,6 @@ class UsernameGenerator
 {
     /**
      * Generate a unique username based on the provided name.
-     *
-     * @param string $name
-     * @param int|null $ignoreUserId
-     * @return string
      */
     public static function generate(string $name, ?int $ignoreUserId = null): string
     {
@@ -22,7 +18,7 @@ class UsernameGenerator
         $counter = 1;
 
         while (self::usernameExists($username, $ignoreUserId)) {
-            $username = $baseUsername . '-' . $counter;
+            $username = $baseUsername.'-'.$counter;
             $counter++;
         }
 
@@ -31,9 +27,6 @@ class UsernameGenerator
 
     /**
      * Normalize the provided name into a slug/username-friendly format.
-     *
-     * @param string $name
-     * @return string
      */
     protected static function normalize(string $name): string
     {
@@ -65,10 +58,6 @@ class UsernameGenerator
 
     /**
      * Determine if the username already exists.
-     *
-     * @param string $username
-     * @param int|null $ignoreUserId
-     * @return bool
      */
     protected static function usernameExists(string $username, ?int $ignoreUserId = null): bool
     {
@@ -89,4 +78,3 @@ class UsernameGenerator
         return (bool) preg_match('/[^\x00-\x7F]/', $value);
     }
 }
-

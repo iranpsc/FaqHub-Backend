@@ -11,8 +11,8 @@ use Tests\TestCase;
 
 class TagStoreTest extends TestCase
 {
-    use RefreshDatabase;
     use InteractsWithTags;
+    use RefreshDatabase;
 
     public function test_guest_cannot_create_tag(): void
     {
