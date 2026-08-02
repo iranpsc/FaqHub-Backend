@@ -146,24 +146,17 @@ jobs:
               if ($metrics !== null) {
                   $statements = (int) $metrics['statements'];
                   $coveredStatements = (int) $metrics['coveredstatements'];
-                  $methods = (int) $metrics['methods'];
-                  $coveredMethods = (int) $metrics['coveredmethods'];
-                  $lineCoverage = $statements > 0
+                  $testCoverage = $statements > 0
                       ? round(($coveredStatements / $statements) * 100, 2)
-                      : 0.0;
-                  $methodCoverage = $methods > 0
-                      ? round(($coveredMethods / $methods) * 100, 2)
                       : 0.0;
 
                   $lines[] = '';
-                  $lines[] = '## Code Coverage';
+                  $lines[] = '## Test Coverage';
                   $lines[] = '';
                   $lines[] = '| Metric | Value |';
                   $lines[] = '| --- | ---: |';
-                  $lines[] = sprintf('| Line coverage | %.2f%% |', $lineCoverage);
-                  $lines[] = sprintf('| Statements covered | %d / %d |', $coveredStatements, $statements);
-                  $lines[] = sprintf('| Method coverage | %.2f%% |', $methodCoverage);
-                  $lines[] = sprintf('| Methods covered | %d / %d |', $coveredMethods, $methods);
+                  $lines[] = sprintf('| Test coverage | %.2f%% |', $testCoverage);
+                  $lines[] = sprintf('| Covered | %d / %d |', $coveredStatements, $statements);
               }
           }
 
