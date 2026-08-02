@@ -56,12 +56,19 @@ class LoginNotificationTest extends TestCase
             'user_agent' => 'TestBrowser',
         ]);
 
-        // We cannot call toMail() directly because it relies on a view file.
-        // Instead, assert the notification structure by checking via() and toArray().
-        $this->assertSame(['mail'], $notification->via($user));
+        $mail = $notification->toMail($user);
 
-        $array = $notification->toArray($user);
-        $this->assertSame($user->id, $array['user_id']);
+        $this->assertSame('ورود جدید به حساب کاربری شما', $mail->subject);
+    }
+
+    public function test_to_mail_uses_fallback_labels_when_login_data_missing(): void
+    {
+        $user = User::factory()->create();
+        $notification = new LoginNotification($user, []);
+
+        $mail = $notification->toMail($user);
+
+        $this->assertSame('ورود جدید به حساب کاربری شما', $mail->subject);
     }
 
     public function test_notification_stores_user_and_login_data(): void

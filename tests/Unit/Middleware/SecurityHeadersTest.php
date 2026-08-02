@@ -4,6 +4,7 @@ namespace Tests\Unit\Middleware;
 
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
 class SecurityHeadersTest extends TestCase
@@ -16,7 +17,7 @@ class SecurityHeadersTest extends TestCase
         $this->middleware = new SecurityHeaders;
     }
 
-    private function getResponse(string $env = 'testing'): \Symfony\Component\HttpFoundation\Response
+    private function getResponse(string $env = 'testing'): Response
     {
         $this->app['env'] = $env;
 

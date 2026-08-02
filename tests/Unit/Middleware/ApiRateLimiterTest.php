@@ -4,10 +4,8 @@ namespace Tests\Unit\Middleware;
 
 use App\Http\Middleware\ApiRateLimiter;
 use App\Models\User;
-use Illuminate\Cache\RateLimiter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 

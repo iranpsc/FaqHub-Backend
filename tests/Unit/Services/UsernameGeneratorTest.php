@@ -114,4 +114,10 @@ class UsernameGeneratorTest extends TestCase
         $count = User::where('username', $username2)->count();
         $this->assertSame(0, $count);
     }
+
+    public function test_punctuation_only_latin_name_falls_back_to_user(): void
+    {
+        $username = UsernameGenerator::generate('***');
+        $this->assertSame('user', $username);
+    }
 }

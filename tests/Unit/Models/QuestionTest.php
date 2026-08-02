@@ -5,6 +5,10 @@ namespace Tests\Unit\Models;
 use App\Models\Answer;
 use App\Models\Question;
 use App\Models\User;
+use App\Models\Verification;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -79,5 +83,34 @@ class QuestionTest extends TestCase
         $this->assertTrue($highIds->contains($ownDraft->id));
         $this->assertTrue($highIds->contains($lowerDraft->id));
         $this->assertFalse($highIds->contains($peerDraft->id));
+    }
+
+    public function test_publisher_and_verification_relations(): void
+    {
+        $publisher = User::factory()->create();
+        $question = Question::factory()->published($publisher)->create();
+
+        $this->assertInstanceOf(BelongsTo::class, $question->publisher());
+        $this->assertTrue($question->publisher->is($publisher));
+
+        $this->assertInstanceOf(MorphMany::class, $question->verifications());
+        Verification::factory()->create([
+            'verifiable_type' => Question::class,
+            'verifiable_id' => $question->id,
+            'user_id' => $publisher->id,
+        ]);
+        $this->assertCount(1, $question->verifications);
+    }
+
+    public function test_pinned_and_featured_by_users_relations(): void
+    {
+        $user = User::factory()->create();
+        $question = Question::factory()->published()->create();
+
+        $this->assertInstanceOf(BelongsToMany::class, $question->pinnedByUsers());
+        $this->assertInstanceOf(BelongsToMany::class, $question->featuredByUsers());
+
+        $question->pinnedByUsers()->attach($user->id, ['pinned_at' => now()]);
+        $this->assertTrue($question->pinnedByUsers->contains($user));
     }
 }

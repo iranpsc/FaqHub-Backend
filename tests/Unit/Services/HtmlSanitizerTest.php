@@ -192,4 +192,22 @@ class HtmlSanitizerTest extends TestCase
         $this->assertStringNotContainsString('data-custom', $result);
         $this->assertStringContainsString('text', $result);
     }
+
+    public function test_empty_href_is_preserved(): void
+    {
+        $html = '<a href="">empty</a>';
+        $result = $this->sanitizer->sanitize($html);
+
+        $this->assertStringContainsString('href=""', $result);
+    }
+
+    public function test_style_with_empty_and_invalid_declarations_is_cleaned(): void
+    {
+        $html = '<p style="color: blue;; bogus; background-color: green">text</p>';
+        $result = $this->sanitizer->sanitize($html);
+
+        $this->assertStringContainsString('color: blue', $result);
+        $this->assertStringContainsString('background-color: green', $result);
+        $this->assertStringNotContainsString('bogus', $result);
+    }
 }

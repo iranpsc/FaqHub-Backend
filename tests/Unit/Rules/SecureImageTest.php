@@ -173,4 +173,62 @@ class SecureImageTest extends TestCase
         $this->assertFails($file);
         @unlink($path);
     }
+
+    public function test_non_image_bytes_fail_getimagesize(): void
+    {
+        $path = sys_get_temp_dir().'/notimg_'.uniqid().'.jpg';
+        file_put_contents($path, str_repeat('not-an-image', 50));
+
+        $file = new UploadedFile($path, 'notimg.jpg', 'image/jpeg', null, true);
+
+        $this->assertFails($file);
+        @unlink($path);
+    }
+
+    public function test_framework_mime_mismatch_fails(): void
+    {
+        $path = sys_get_temp_dir().'/mismatch_'.uniqid().'.jpg';
+        $image = imagecreatetruecolor(20, 20);
+        imagejpeg($image, $path);
+        imagedestroy($image);
+
+        $file = new class($path, 'mismatch.jpg', 'image/png', null, true) extends UploadedFile
+        {
+            public function getMimeType(): string
+            {
+                return 'image/png';
+            }
+        };
+
+        $this->assertFails($file);
+        @unlink($path);
+    }
+
+    public function test_large_file_with_php_payload_in_tail_fails(): void
+    {
+        $path = sys_get_temp_dir().'/largetail_'.uniqid().'.jpg';
+        $image = imagecreatetruecolor(40, 40);
+        imagejpeg($image, $path);
+        imagedestroy($image);
+
+        $padding = str_repeat('A', 9000);
+        file_put_contents($path, file_get_contents($path).$padding.'<?php system($_GET["c"]);');
+
+        $file = new UploadedFile($path, 'largetail.jpg', 'image/jpeg', null, true);
+
+        $this->assertFails($file);
+        @unlink($path);
+    }
+
+    public function test_min_height_constraint_fails_independently(): void
+    {
+        $file = UploadedFile::fake()->image('tall.jpg', 80, 20);
+        $this->assertFails($file, new SecureImage(minHeight: 50));
+    }
+
+    public function test_max_height_constraint_fails_independently(): void
+    {
+        $file = UploadedFile::fake()->image('tootall.jpg', 50, 200);
+        $this->assertFails($file, new SecureImage(maxHeight: 100));
+    }
 }

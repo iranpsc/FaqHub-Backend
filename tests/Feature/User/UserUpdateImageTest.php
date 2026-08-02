@@ -10,6 +10,14 @@ use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
+class ThrowingStoreUploadedFile extends UploadedFile
+{
+    public function storeAs($path, $name = null, $options = [])
+    {
+        throw new \RuntimeException('disk full');
+    }
+}
+
 class UserUpdateImageTest extends TestCase
 {
     use RefreshDatabase;
@@ -243,5 +251,26 @@ class UserUpdateImageTest extends TestCase
         $this->assertStringStartsWith('avatars/'.$user->id.'_', $path);
         $this->assertStringNotContainsString('..', $path);
         $this->assertStringNotContainsString('etc/passwd', $path);
+    }
+
+    public function test_storage_failure_returns_500(): void
+    {
+        $user = User::factory()->create(['image' => null]);
+        Sanctum::actingAs($user);
+
+        $path = sys_get_temp_dir().'/storefail_'.uniqid().'.jpg';
+        $image = imagecreatetruecolor(40, 40);
+        imagejpeg($image, $path);
+        imagedestroy($image);
+
+        $file = new ThrowingStoreUploadedFile($path, 'avatar.jpg', 'image/jpeg', null, true);
+
+        $this->postJson('/api/user/update-image', ['image' => $file])
+            ->assertStatus(500)
+            ->assertJson([
+                'message' => 'خطا در بروزرسانی تصویر پروفایل',
+            ]);
+
+        @unlink($path);
     }
 }

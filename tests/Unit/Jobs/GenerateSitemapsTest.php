@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Question;
 use App\Models\Tag;
 use App\Models\User;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
@@ -198,7 +199,7 @@ class GenerateSitemapsTest extends TestCase
         ]);
 
         // Mock Storage::disk('ftp') to throw
-        $fakeDisk = \Mockery::mock(\Illuminate\Contracts\Filesystem\Filesystem::class);
+        $fakeDisk = \Mockery::mock(Filesystem::class);
         $fakeDisk->shouldReceive('writeStream')->andThrow(new \RuntimeException('FTP connection failed'));
 
         Storage::shouldReceive('disk')
@@ -214,5 +215,51 @@ class GenerateSitemapsTest extends TestCase
         $this->expectExceptionMessage('FTP connection failed');
 
         (new GenerateSitemaps)->handle();
+    }
+
+    public function test_upload_skips_missing_local_files(): void
+    {
+        $category = Category::factory()->create(['slug' => 'skip-missing']);
+        (new GenerateSitemaps)->handle();
+
+        $job = new GenerateSitemaps;
+        $reflection = new \ReflectionClass($job);
+        $generated = $reflection->getProperty('generatedFiles');
+        $generated->setValue($job, ['missing-file.xml', 'categories-sitemap.xml']);
+
+        $upload = $reflection->getMethod('uploadSitemapsToFtp');
+        $upload->invoke($job, $this->sitemapDir);
+
+        $this->assertTrue(Storage::disk('ftp')->exists('categories-sitemap.xml'));
+        $this->assertFalse(Storage::disk('ftp')->exists('missing-file.xml'));
+    }
+
+    public function test_multipart_sitemap_when_links_exceed_limit(): void
+    {
+        // Create enough categories to force a second sitemap part (MAX_LINKS_PER_FILE = 5000).
+        // Use a bulk insert for speed.
+        $now = now();
+        $rows = [];
+        for ($i = 1; $i <= 5001; $i++) {
+            $rows[] = [
+                'name' => "Category {$i}",
+                'slug' => "cat-{$i}",
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+            if (count($rows) === 500) {
+                Category::query()->insert($rows);
+                $rows = [];
+            }
+        }
+        if ($rows !== []) {
+            Category::query()->insert($rows);
+        }
+
+        (new GenerateSitemaps)->handle();
+
+        $this->assertFileExists($this->sitemapDir.'/categories-sitemap-1.xml');
+        $this->assertFileExists($this->sitemapDir.'/categories-sitemap-2.xml');
+        $this->assertFileDoesNotExist($this->sitemapDir.'/categories-sitemap.xml');
     }
 }

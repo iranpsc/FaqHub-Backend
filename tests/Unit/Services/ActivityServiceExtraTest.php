@@ -147,6 +147,49 @@ class ActivityServiceExtraTest extends TestCase
         $this->assertSame(0, $stats['total_votes']);
     }
 
+    public function test_transform_handles_vote_labels_for_answer_comment_and_default(): void
+    {
+        $user = User::factory()->create();
+        $question = Question::factory()->published()->create();
+        $answer = Answer::factory()->published()->create(['question_id' => $question->id]);
+        $comment = Comment::factory()->published()->create([
+            'commentable_type' => Question::class,
+            'commentable_id' => $question->id,
+        ]);
+
+        activity()->causedBy($user)->performedOn($answer)->withProperties([
+            'vote_type' => 'up',
+            'votable_type' => Answer::class,
+            'question_title' => $question->title,
+            'question_slug' => $question->slug,
+        ])->log('voted');
+
+        activity()->causedBy($user)->performedOn($comment)->withProperties([
+            'vote_type' => 'down',
+            'votable_type' => Comment::class,
+            'question_title' => $question->title,
+            'question_slug' => $question->slug,
+        ])->log('voted');
+
+        activity()->causedBy($user)->performedOn($question)->withProperties([
+            'vote_type' => 'up',
+            'votable_type' => 'App\\Models\\Unknown',
+            'question_title' => $question->title,
+            'question_slug' => $question->slug,
+        ])->log('voted');
+
+        // created_comment with non-Comment subject should be filtered out
+        activity()->causedBy($user)->performedOn($question)->log('created_comment');
+
+        $result = $this->service->getActivities(10);
+        $voteDescriptions = collect($result['activities'])->where('type', 'vote')->pluck('description');
+
+        $this->assertTrue($voteDescriptions->contains(fn ($d) => str_contains($d, 'پاسخ')));
+        $this->assertTrue($voteDescriptions->contains(fn ($d) => str_contains($d, 'نظر')));
+        $this->assertTrue($voteDescriptions->contains(fn ($d) => str_contains($d, 'محتوا')));
+        $this->assertFalse(collect($result['activities'])->contains(fn ($a) => ($a['type'] ?? null) === 'comment'));
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function seedActivities(int $count): void

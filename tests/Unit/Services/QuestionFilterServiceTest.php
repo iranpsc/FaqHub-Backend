@@ -127,4 +127,25 @@ class QuestionFilterServiceTest extends TestCase
 
         $this->assertEquals([$olderPinned->id, $newer->id], $ids);
     }
+
+    public function test_unknown_sort_field_falls_back_to_created_at_desc(): void
+    {
+        $category = Category::factory()->create();
+        $older = Question::factory()->published()->create([
+            'category_id' => $category->id,
+            'created_at' => now()->subDay(),
+        ]);
+        $newer = Question::factory()->published()->create([
+            'category_id' => $category->id,
+            'created_at' => now(),
+        ]);
+
+        $ids = $this->service->filter(Request::create('/api/questions', 'GET', [
+            'sort' => 'unknown_field',
+            'order' => 'asc',
+            'category_id' => $category->id,
+        ]))->pluck('id')->all();
+
+        $this->assertSame([$newer->id, $older->id], $ids);
+    }
 }

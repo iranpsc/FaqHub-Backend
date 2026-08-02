@@ -114,4 +114,43 @@ class OptionalAuthSanctumTest extends TestCase
         $token->refresh();
         $this->assertNotNull($token->last_used_at);
     }
+
+    public function test_user_resolver_with_guard_argument_uses_auth_guard(): void
+    {
+        $user = User::factory()->create();
+        $plainTextToken = $user->createToken('guard-test')->plainTextToken;
+
+        $request = Request::create('/api/questions', 'GET');
+        $request->headers->set('Authorization', 'Bearer '.$plainTextToken);
+
+        $resolved = null;
+        $this->middleware->handle($request, function (Request $r) use (&$resolved) {
+            $resolved = $r->user('web');
+
+            return response()->json(['ok' => true]);
+        });
+
+        $this->assertNotNull($resolved);
+        $this->assertSame($user->id, $resolved->id);
+    }
+
+    public function test_token_without_tokenable_passes_through(): void
+    {
+        $user = User::factory()->create();
+        $tokenResult = $user->createToken('orphan');
+        $plainTextToken = $tokenResult->plainTextToken;
+        $tokenResult->accessToken->forceFill(['tokenable_id' => 999999])->save();
+
+        $request = Request::create('/api/questions', 'GET');
+        $request->headers->set('Authorization', 'Bearer '.$plainTextToken);
+
+        $authUser = 'unset';
+        $this->middleware->handle($request, function (Request $r) use (&$authUser) {
+            $authUser = $r->user();
+
+            return response()->json(['ok' => true]);
+        });
+
+        $this->assertNull($authUser);
+    }
 }

@@ -182,4 +182,42 @@ class UserStatsAndActivityTest extends TestCase
                 'question_slug' => $question->slug,
             ]);
     }
+
+    public function test_activity_includes_comments_on_questions_and_answers(): void
+    {
+        $user = User::factory()->create();
+        $question = Question::factory()->published()->create(['title' => 'سوال والد']);
+        $answer = Answer::factory()->published()->create([
+            'question_id' => $question->id,
+        ]);
+
+        Comment::factory()->create([
+            'user_id' => $user->id,
+            'commentable_type' => Question::class,
+            'commentable_id' => $question->id,
+            'published' => true,
+            'published_at' => now(),
+            'created_at' => now()->subMinute(),
+        ]);
+
+        Comment::factory()->create([
+            'user_id' => $user->id,
+            'commentable_type' => Answer::class,
+            'commentable_id' => $answer->id,
+            'published' => true,
+            'published_at' => now(),
+            'created_at' => now(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/user/activity')->assertOk();
+        $descriptions = collect($response->json())->pluck('description');
+
+        $this->assertTrue($descriptions->contains(fn ($d) => str_contains($d, 'سوال والد')));
+        $this->assertTrue(
+            collect($response->json())->contains(fn ($item) => $item['type'] === 'comment'
+                && $item['question_slug'] === $question->slug)
+        );
+    }
 }

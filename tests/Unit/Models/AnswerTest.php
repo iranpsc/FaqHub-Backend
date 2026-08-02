@@ -61,6 +61,7 @@ class AnswerTest extends TestCase
         $this->assertNotNull($answer->question);
         $this->assertInstanceOf(MorphMany::class, $answer->votes());
         $this->assertInstanceOf(HasMany::class, $answer->correctnessMarks());
+        $this->assertInstanceOf(MorphMany::class, $answer->verifications());
     }
 
     public function test_casts_booleans_and_datetime(): void

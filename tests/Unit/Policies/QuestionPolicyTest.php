@@ -116,4 +116,71 @@ class QuestionPolicyTest extends TestCase
         $this->assertFalse($this->policy->unfeature($actor, $notFeatured));
         $this->assertFalse($this->policy->unfeature($author, $featured));
     }
+
+    public function test_delete_feature_unfeature_deny_when_question_user_is_null(): void
+    {
+        $actor = User::factory()->create(['level' => 5]);
+        $question = Question::factory()->unpublished()->create();
+        $question->setRelation('user', null);
+
+        $this->assertFalse($this->policy->delete($actor, $question));
+        $this->assertFalse($this->policy->feature($actor, $question));
+        $this->assertFalse($this->policy->unfeature($actor, $question));
+    }
+
+    public function test_feature_denied_when_already_featured_or_limit_reached(): void
+    {
+        $author = User::factory()->create(['level' => 1]);
+        $actor = User::factory()->create(['level' => 5]);
+        $question = Question::factory()->published()->create(['user_id' => $author->id]);
+
+        $actor->featuredQuestions()->create([
+            'question_id' => $question->id,
+            'type' => 'featured',
+            'featured_at' => now(),
+        ]);
+        $this->assertFalse($this->policy->feature($actor, $question));
+
+        $actor2 = User::factory()->create(['level' => 5]);
+        $q1 = Question::factory()->published()->create(['user_id' => $author->id]);
+        $q2 = Question::factory()->published()->create(['user_id' => $author->id]);
+        $q3 = Question::factory()->published()->create(['user_id' => $author->id]);
+        $actor2->featuredQuestions()->create(['question_id' => $q1->id, 'type' => 'featured', 'featured_at' => now()]);
+        $actor2->featuredQuestions()->create(['question_id' => $q2->id, 'type' => 'featured', 'featured_at' => now()]);
+        $this->assertFalse($this->policy->feature($actor2, $q3));
+    }
+
+    public function test_unfeature_denied_when_already_unfeatured_or_limit_reached(): void
+    {
+        $author = User::factory()->create(['level' => 1]);
+        $actor = User::factory()->create(['level' => 5]);
+        $featured = Question::factory()->published()->featured()->create(['user_id' => $author->id]);
+
+        $actor->unfeaturedQuestions()->create([
+            'question_id' => $featured->id,
+            'type' => 'unfeatured',
+            'featured_at' => now(),
+        ]);
+        $this->assertFalse($this->policy->unfeature($actor, $featured));
+
+        $actor2 = User::factory()->create(['level' => 5]);
+        $f1 = Question::factory()->published()->featured()->create(['user_id' => $author->id]);
+        $f2 = Question::factory()->published()->featured()->create(['user_id' => $author->id]);
+        $f3 = Question::factory()->published()->featured()->create(['user_id' => $author->id]);
+        $actor2->unfeaturedQuestions()->create(['question_id' => $f1->id, 'type' => 'unfeatured', 'featured_at' => now()]);
+        $actor2->unfeaturedQuestions()->create(['question_id' => $f2->id, 'type' => 'unfeatured', 'featured_at' => now()]);
+        $this->assertFalse($this->policy->unfeature($actor2, $f3));
+    }
+
+    public function test_unfeature_denied_for_unpublished_featured_question(): void
+    {
+        $author = User::factory()->create(['level' => 1]);
+        $actor = User::factory()->create(['level' => 5]);
+        $question = Question::factory()->unpublished()->create([
+            'user_id' => $author->id,
+            'featured' => true,
+        ]);
+
+        $this->assertFalse($this->policy->unfeature($actor, $question));
+    }
 }
