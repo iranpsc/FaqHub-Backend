@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\Comment;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Auth\Access\Response;
 
 class CommentPolicy
 {
@@ -13,8 +14,7 @@ class CommentPolicy
     /**
      * Determine whether the user can view any comments.
      *
-     * @param  \App\Models\User  $user
-     * @return \Illuminate\Auth\Access\Response|bool
+     * @return Response|bool
      */
     public function viewAny(User $user)
     {
@@ -24,9 +24,7 @@ class CommentPolicy
     /**
      * Determine whether the user can view the comment.
      *
-     * @param  \App\Models\User  $user
-     * @param  \App\Models\Comment  $comment
-     * @return \Illuminate\Auth\Access\Response|bool
+     * @return Response|bool
      */
     public function view(User $user, Comment $comment)
     {
@@ -36,8 +34,7 @@ class CommentPolicy
     /**
      * Determine whether the user can create comments.
      *
-     * @param  \App\Models\User  $user
-     * @return \Illuminate\Auth\Access\Response|bool
+     * @return Response|bool
      */
     public function create(User $user)
     {
@@ -47,33 +44,27 @@ class CommentPolicy
     /**
      * Determine whether the user can update the model.
      *
-     * @param  \App\Models\User  $user
-     * @param  \App\Models\Comment  $comment
-     * @return \Illuminate\Auth\Access\Response|bool
+     * @return Response|bool
      */
     public function update(User $user, Comment $comment)
     {
-        return $comment->user->is($user) && !$comment->published;
+        return $comment->user->is($user) && ! $comment->published;
     }
 
     /**
      * Determine whether the user can delete the model.
      *
-     * @param  \App\Models\User  $user
-     * @param  \App\Models\Comment  $comment
-     * @return \Illuminate\Auth\Access\Response|bool
+     * @return Response|bool
      */
     public function delete(User $user, Comment $comment)
     {
-        return $comment->user->is($user) && !$comment->published;
+        return $comment->user->is($user) && ! $comment->published;
     }
 
     /**
      * Determine whether the user can publish the model.
      *
-     * @param  \App\Models\User  $user
-     * @param  \App\Models\Comment  $comment
-     * @return \Illuminate\Auth\Access\Response|bool
+     * @return Response|bool
      */
     public function publish(User $user, Comment $comment)
     {

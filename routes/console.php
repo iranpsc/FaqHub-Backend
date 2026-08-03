@@ -1,8 +1,8 @@
 <?php
 
+use App\Jobs\GenerateSitemaps;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use App\Jobs\GenerateSitemaps;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

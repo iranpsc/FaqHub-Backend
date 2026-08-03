@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\QuestionResource;
+use App\Models\Question;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Http\Resources\QuestionResource;
 
 class AuthorController extends Controller
 {
-
     public function __construct()
     {
         $this->middleware('auth.optional');
@@ -18,17 +18,14 @@ class AuthorController extends Controller
 
     /**
      * Get paginated list of authors/users with their activity statistics
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
         try {
-            $perPage = $request->get('per_page', 20);
-            $sortBy = $request->get('sort_by', 'score'); // score, questions_count, answers_count, name, created_at
-            $sortOrder = $request->get('sort_order', 'desc');
-            $search = $request->get('search');
+            $perPage = $request->input('per_page', 20);
+            $sortBy = $request->input('sort_by', 'score'); // score, questions_count, answers_count, name, created_at
+            $sortOrder = $request->input('sort_order', 'desc');
+            $search = $request->input('search');
 
             $query = User::withCount(['questions', 'answers', 'comments'])
                 ->with(['questions' => function ($query) {
@@ -39,8 +36,8 @@ class AuthorController extends Controller
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhere('username', 'like', "%{$search}%");
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('username', 'like', "%{$search}%");
                 });
             }
 
@@ -112,22 +109,19 @@ class AuthorController extends Controller
                     'last' => $users->url($users->lastPage()),
                     'prev' => $users->previousPageUrl(),
                     'next' => $users->nextPageUrl(),
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت لیست نویسندگان',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Get single author details with their activity
-     *
-     * @param User $author
-     * @return JsonResponse
      */
     public function show(User $author): JsonResponse
     {
@@ -141,14 +135,13 @@ class AuthorController extends Controller
                 },
                 'comments' => function ($query) {
                     $query->published();
-                }
+                },
             ]);
 
             $formattedUser = [
                 'id' => $author->id,
                 'username' => $author->username,
                 'name' => $author->name,
-                'email' => $author->email,
                 'image_url' => $author->image_url,
                 'score' => $author->score ?? 0,
                 'level' => $author->level ?? 1,
@@ -173,26 +166,58 @@ class AuthorController extends Controller
     }
 
     /**
-     * Get paginated questions for a specific author
+     * Get paginated questions for a specific author.
+     *
+     * Query params:
+     * - type: questions (default) | answers | comments
+     * - per_page: pagination size
      */
     public function questions(Request $request, User $user)
     {
         try {
-            $perPage = (int) $request->get('per_page', 10);
+            $perPage = (int) $request->input('per_page', 10);
+            $type = $request->input('type', 'questions');
 
-            $questions = \App\Models\Question::query()
-                ->where('user_id', $user->id)
+            if (! in_array($type, ['questions', 'answers', 'comments'], true)) {
+                $type = 'questions';
+            }
+
+            $query = Question::query()
                 ->with(['user', 'category', 'tags'])
                 ->withCount(['votes', 'answers'])
-                ->published()
-                ->paginate($perPage);
+                ->published();
+
+            switch ($type) {
+                case 'answers':
+                    $query->whereHas('answers', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)->published();
+                    })->latest('last_activity');
+                    break;
+
+                case 'comments':
+                    $query->where(function ($q) use ($user) {
+                        $q->whereHas('comments', function ($commentQuery) use ($user) {
+                            $commentQuery->where('user_id', $user->id)->published();
+                        })->orWhereHas('answers.comments', function ($commentQuery) use ($user) {
+                            $commentQuery->where('user_id', $user->id)->published();
+                        });
+                    })->latest('last_activity');
+                    break;
+
+                case 'questions':
+                default:
+                    $query->where('user_id', $user->id)->latest();
+                    break;
+            }
+
+            $questions = $query->paginate($perPage);
 
             return QuestionResource::collection($questions);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت سوالات نویسنده',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

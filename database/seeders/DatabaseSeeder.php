@@ -12,7 +12,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        //$this->call(MigrateDatabaseSeeder::class);
+        // $this->call(MigrateDatabaseSeeder::class);
         $this->call(PersianDataSeeder::class);
         $this->call(UserUsernameSeeder::class);
     }

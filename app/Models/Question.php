@@ -2,13 +2,19 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Facades\DB;
 
 class Question extends Model
 {
     use HasFactory;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -25,7 +31,7 @@ class Question extends Model
         'views',
         'published',
         'published_at',
-        'published_by'
+        'published_by',
     ];
 
     /**
@@ -38,7 +44,7 @@ class Question extends Model
         'published' => false,
         'last_activity' => null,
         'published_at' => null,
-        'published_by' => null
+        'published_by' => null,
     ];
 
     /**
@@ -59,7 +65,7 @@ class Question extends Model
     /**
      * Get the category that owns the question.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function category()
     {
@@ -69,7 +75,7 @@ class Question extends Model
     /**
      * Get the user that owns the question.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function user()
     {
@@ -79,7 +85,7 @@ class Question extends Model
     /**
      * Get the user that published the question.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function publisher()
     {
@@ -89,7 +95,7 @@ class Question extends Model
     /**
      * Get the tags for the question.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany
      */
     public function tags()
     {
@@ -99,7 +105,7 @@ class Question extends Model
     /**
      * Get the answers for the question.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function answers()
     {
@@ -109,7 +115,7 @@ class Question extends Model
     /**
      * Get all of the question's comments.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function comments()
     {
@@ -119,7 +125,7 @@ class Question extends Model
     /**
      * Get all of the question's votes.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function votes()
     {
@@ -129,7 +135,7 @@ class Question extends Model
     /**
      * Get the upvotes for the question.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function upVotes()
     {
@@ -139,7 +145,7 @@ class Question extends Model
     /**
      * Get the downvotes for the question.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function downVotes()
     {
@@ -149,7 +155,7 @@ class Question extends Model
     /**
      * Get the users who have pinned this question.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany
      */
     public function pinnedByUsers()
     {
@@ -161,7 +167,7 @@ class Question extends Model
     /**
      * Get the users who have featured this question.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany
      */
     public function featuredByUsers()
     {
@@ -173,7 +179,7 @@ class Question extends Model
     /**
      * Get all of the question's verifications.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function verifications()
     {
@@ -195,8 +201,8 @@ class Question extends Model
     /**
      * Scope a query to only include published questions.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @return Builder
      */
     public function scopePublished($query)
     {
@@ -207,14 +213,13 @@ class Question extends Model
     /**
      * Scope a query to include visible questions based on user authentication and level.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param \App\Models\User|null $user
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @return Builder
      */
     public function scopeVisible($query, ?User $user)
     {
         // If user is not authenticated, only show published questions
-        if (!$user) {
+        if (! $user) {
             return $query->published();
         }
 
@@ -238,16 +243,15 @@ class Question extends Model
      * Scope a query to get questions with user's pin status.
      * Uses subqueries instead of JOINs for better performance.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param \App\Models\User|null $user
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @return Builder
      */
     public function scopeWithUserPinStatus($query, ?User $user)
     {
-        if (!$user) {
+        if (! $user) {
             return $query->addSelect([
                 DB::raw('0 as is_pinned_by_user'),
-                DB::raw('NULL as pinned_at')
+                DB::raw('NULL as pinned_at'),
             ]);
         }
 
@@ -261,20 +265,19 @@ class Question extends Model
                 ->select('pinned_at')
                 ->whereColumn('user_pinned_questions.question_id', 'questions.id')
                 ->where('user_pinned_questions.user_id', $user->id)
-                ->limit(1)
+                ->limit(1),
         ]);
     }
 
     /**
      * Scope a query to order questions with pinned ones first.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param \App\Models\User|null $user
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @return Builder
      */
     public function scopeOrderByPinStatus($query, ?User $user)
     {
-        if (!$user) {
+        if (! $user) {
             return $query->latest('questions.created_at');
         }
 
@@ -287,16 +290,15 @@ class Question extends Model
      * Scope a query to get questions with user's feature status.
      * Uses subqueries instead of JOINs for better performance.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param \App\Models\User|null $user
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @return Builder
      */
     public function scopeWithUserFeatureStatus($query, ?User $user)
     {
-        if (!$user) {
+        if (! $user) {
             return $query->addSelect([
                 DB::raw('0 as is_featured_by_user'),
-                DB::raw('NULL as featured_at')
+                DB::raw('NULL as featured_at'),
             ]);
         }
 
@@ -310,15 +312,12 @@ class Question extends Model
                 ->select('featured_at')
                 ->whereColumn('user_featured_questions.question_id', 'questions.id')
                 ->where('user_featured_questions.user_id', $user->id)
-                ->limit(1)
+                ->limit(1),
         ]);
     }
 
     /**
      * Generate a unique slug from the title.
-     *
-     * @param string $title
-     * @return string
      */
     public static function generateSlug(string $title): string
     {
@@ -329,7 +328,7 @@ class Question extends Model
 
         // Ensure uniqueness
         while (static::where('slug', $slug)->exists()) {
-            $slug = $originalSlug . '-' . $counter;
+            $slug = $originalSlug.'-'.$counter;
             $counter++;
         }
 

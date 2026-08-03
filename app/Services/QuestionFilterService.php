@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Question;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -11,9 +12,6 @@ class QuestionFilterService
 {
     /**
      * Filter questions based on request parameters
-     *
-     * @param Request $request
-     * @return Builder
      */
     public function filter(Request $request): Builder
     {
@@ -30,7 +28,7 @@ class QuestionFilterService
                 ->selectRaw('CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END')
                 ->whereColumn('answers.question_id', 'questions.id')
                 ->where('answers.is_correct', true)
-                ->limit(1)
+                ->limit(1),
         ]);
 
         // Add user_vote as a subquery to avoid N+1 (only if user is authenticated)
@@ -41,7 +39,7 @@ class QuestionFilterService
                     ->whereColumn('votes.votable_id', 'questions.id')
                     ->where('votes.votable_type', Question::class)
                     ->where('votes.user_id', $user->id)
-                    ->limit(1)
+                    ->limit(1),
             ]);
         } else {
             $query->addSelect([DB::raw('NULL as user_vote')]);
@@ -58,7 +56,7 @@ class QuestionFilterService
                 },
                 'comments as unpublished_comments_count' => function ($query) {
                     $query->where('published', false);
-                }
+                },
             ])
             ->visible($user)
             ->withUserPinStatus($user)
@@ -89,10 +87,7 @@ class QuestionFilterService
     /**
      * Apply sorting filters based on request parameters
      *
-     * @param Request $request
-     * @param Builder $query
-     * @param mixed $user
-     * @return void
+     * @param  mixed  $user
      */
     private function applySortingFilters(Request $request, Builder $query, $user): void
     {
@@ -102,22 +97,26 @@ class QuestionFilterService
                 case 'unanswered':
                     $query->whereDoesntHave('answers')
                         ->orderBy('created_at', 'desc');
+
                     return;
                 case 'unsolved':
                     // Assuming unsolved means no accepted answer
                     $query->whereDoesntHave('answers', function ($q) {
                         $q->where('is_correct', true);
                     })->orderBy('created_at', 'desc');
+
                     return;
                 case 'solved':
                     // Assuming solved means at least one accepted answer
                     $query->whereHas('answers', function ($q) {
                         $q->where('is_correct', true);
                     })->orderBy('created_at', 'desc');
+
                     return;
                 case 'unpublished':
                     $query->where('questions.published', false)
                         ->orderBy('created_at', 'desc');
+
                     return;
             }
         }
@@ -144,15 +143,13 @@ class QuestionFilterService
                     $query->orderBy('created_at', 'desc');
                     break;
             }
+
             return;
         }
     }
 
     /**
      * Check if the request has any active filtering parameters
-     *
-     * @param Request $request
-     * @return bool
      */
     private function hasActiveFilters(Request $request): bool
     {
@@ -173,13 +170,12 @@ class QuestionFilterService
     /**
      * Get paginated questions with filters applied
      *
-     * @param Request $request
-     * @param int $perPage
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @return LengthAwarePaginator
      */
     public function getPaginatedQuestions(Request $request, int $perPage = 10)
     {
         $query = $this->filter($request);
+
         return $query->paginate($perPage);
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 return [
     /*
      * Whether to register the Persian validation rules in Laravel validation container.

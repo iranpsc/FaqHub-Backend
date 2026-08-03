@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\TagResource;
 use App\Http\Resources\QuestionResource;
+use App\Http\Resources\TagResource;
 use App\Models\Tag;
 use Illuminate\Http\Request;
 
 class TagController extends Controller
 {
-
     public function __construct()
     {
         $this->middleware('auth:sanctum')->except(['index', 'show', 'questions']);
@@ -89,8 +88,8 @@ class TagController extends Controller
     public function update(Request $request, Tag $tag)
     {
         $validated = $request->validate([
-            'name' => 'sometimes|required|string|max:255|unique:tags,name,' . $tag->id,
-            'slug' => 'nullable|string|max:255|unique:tags,slug,' . $tag->id,
+            'name' => 'sometimes|required|string|max:255|unique:tags,name,'.$tag->id,
+            'slug' => 'nullable|string|max:255|unique:tags,slug,'.$tag->id,
         ]);
 
         $tag->update($validated);

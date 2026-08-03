@@ -2,22 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Auth;
 use App\Jobs\FetchUserLevel;
+use App\Models\User;
 use App\Notifications\LoginNotification;
 use App\Services\UsernameGenerator;
+use Illuminate\Contracts\Auth\StatefulGuard;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
     /**
      * Redirect to the OAuth server for authentication.
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function redirect(Request $request)
     {
@@ -53,15 +54,14 @@ class AuthController extends Controller
         ]);
 
         return response()->json([
-            'redirect_url' => config('services.oauth.url') . '/oauth/authorize?' . $query
+            'redirect_url' => config('services.oauth.url').'/oauth/authorize?'.$query,
         ]);
     }
 
     /**
      * Handle the OAuth callback.
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function callback(Request $request)
     {
@@ -72,7 +72,7 @@ class AuthController extends Controller
             \InvalidArgumentException::class
         );
 
-        $response = Http::asForm()->post(config('services.oauth.url') . '/oauth/token', [
+        $response = Http::asForm()->post(config('services.oauth.url').'/oauth/token', [
             'grant_type' => 'authorization_code',
             'client_id' => config('services.oauth.client_id'),
             'client_secret' => config('services.oauth.client_secret'),
@@ -84,10 +84,10 @@ class AuthController extends Controller
 
         $userResponse = Http::withHeaders([
             'Accept' => 'application/json',
-            'Authorization' => 'Bearer ' . $accessToken,
+            'Authorization' => 'Bearer '.$accessToken,
         ])
             ->acceptJson()
-            ->get(config('services.oauth.url') . '/api/user');
+            ->get(config('services.oauth.url').'/api/user');
 
         $userArray = $userResponse->json();
 
@@ -150,16 +150,16 @@ class AuthController extends Controller
         $baseUrl = $this->validateAndSanitizeUrl($intendedUrl, $request);
 
         // If validation failed or URL is dangerous, use default app URL
-        if (!$baseUrl) {
+        if (! $baseUrl) {
             $baseUrl = config('services.oauth.app_url');
         }
 
         // Final check: ensure we're not redirecting to the callback route itself
-        $finalUrl = $baseUrl . '#token=' . $token;
+        $finalUrl = $baseUrl.'#token='.$token;
         if ($this->isRedirectLoop($finalUrl, $request)) {
             // Fallback to safe default URL
             $baseUrl = config('services.oauth.app_url');
-            $finalUrl = $baseUrl . '#token=' . $token;
+            $finalUrl = $baseUrl.'#token='.$token;
         }
 
         // Use URL fragment to avoid leaking tokens via Referer headers
@@ -169,8 +169,7 @@ class AuthController extends Controller
     /**
      * Get the authenticated user.
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function me(Request $request)
     {
@@ -189,12 +188,10 @@ class AuthController extends Controller
         return response()->json($userData);
     }
 
-
     /**
      * Log out the user and revoke all tokens.
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function logout(Request $request)
     {
@@ -210,13 +207,12 @@ class AuthController extends Controller
     /**
      * Validate and sanitize the intended URL to prevent open redirects and infinite loops.
      *
-     * @param string|null $url
-     * @param Request|null $request
+     * @param  string|null  $url
      * @return string|null
      */
     protected function validateAndSanitizeUrl($url, ?Request $request = null)
     {
-        if (!$url) {
+        if (! $url) {
             return null;
         }
 
@@ -264,7 +260,7 @@ class AuthController extends Controller
             $normalizedDangerous = rtrim(strtolower($dangerousPath), '/');
             // Check if path starts with or equals dangerous path
             if ($normalizedPath === $normalizedDangerous ||
-                str_starts_with($normalizedPath, $normalizedDangerous . '/')) {
+                str_starts_with($normalizedPath, $normalizedDangerous.'/')) {
                 return null;
             }
         }
@@ -277,18 +273,14 @@ class AuthController extends Controller
         // Reconstruct a clean URL (without fragment, as it will be added separately)
         $scheme = $parsedUrl['scheme'] ?? 'https';
         $host = $parsedUrl['host'];
-        $port = isset($parsedUrl['port']) ? ':' . $parsedUrl['port'] : '';
-        $query = isset($parsedUrl['query']) ? '?' . $parsedUrl['query'] : '';
+        $port = isset($parsedUrl['port']) ? ':'.$parsedUrl['port'] : '';
+        $query = isset($parsedUrl['query']) ? '?'.$parsedUrl['query'] : '';
 
-        return $scheme . '://' . $host . $port . $path . $query;
+        return $scheme.'://'.$host.$port.$path.$query;
     }
 
     /**
      * Check if a redirect would cause an infinite loop.
-     *
-     * @param string $redirectUrl
-     * @param Request $request
-     * @return bool
      */
     protected function isRedirectLoop(string $redirectUrl, Request $request): bool
     {
@@ -301,8 +293,8 @@ class AuthController extends Controller
         }
 
         // Compare hosts
-        $redirectHost = ($redirectParsed['scheme'] ?? '') . '://' . ($redirectParsed['host'] ?? '');
-        $currentHost = ($currentParsed['scheme'] ?? '') . '://' . ($currentParsed['host'] ?? '');
+        $redirectHost = ($redirectParsed['scheme'] ?? '').'://'.($redirectParsed['host'] ?? '');
+        $currentHost = ($currentParsed['scheme'] ?? '').'://'.($currentParsed['host'] ?? '');
 
         if ($redirectHost !== $currentHost) {
             return false;
@@ -330,7 +322,7 @@ class AuthController extends Controller
     /**
      * Get the guard for the controller.
      *
-     * @return \Illuminate\Contracts\Auth\StatefulGuard
+     * @return StatefulGuard
      */
     protected function guard()
     {

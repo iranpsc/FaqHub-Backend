@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Answer extends Model
 {
     use HasFactory;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -40,7 +45,7 @@ class Answer extends Model
     /**
      * Get the question that owns the answer.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function question()
     {
@@ -50,7 +55,7 @@ class Answer extends Model
     /**
      * Get the user that owns the answer.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function user()
     {
@@ -60,7 +65,7 @@ class Answer extends Model
     /**
      * Get the user that published the answer.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function publisher()
     {
@@ -70,7 +75,7 @@ class Answer extends Model
     /**
      * Get all of the answer's comments.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function comments()
     {
@@ -80,7 +85,7 @@ class Answer extends Model
     /**
      * Get all of the answer's votes.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function votes()
     {
@@ -90,7 +95,7 @@ class Answer extends Model
     /**
      * Get the upvotes for the answer.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function upVotes()
     {
@@ -100,7 +105,7 @@ class Answer extends Model
     /**
      * Get the downvotes for the answer.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function downVotes()
     {
@@ -110,7 +115,7 @@ class Answer extends Model
     /**
      * Get all of the answer's verifications.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
     public function verifications()
     {
@@ -120,7 +125,7 @@ class Answer extends Model
     /**
      * Get all correctness marks for this answer.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function correctnessMarks()
     {
@@ -130,8 +135,8 @@ class Answer extends Model
     /**
      * Scope a query to only include published answers.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @return Builder
      */
     public function scopePublished($query)
     {
@@ -142,14 +147,13 @@ class Answer extends Model
     /**
      * Scope a query to include visible answers based on user authentication and level.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param \App\Models\User|null $user
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @return Builder
      */
     public function scopeVisible($query, ?User $user)
     {
         // If user is not authenticated, only show published answers
-        if (!$user) {
+        if (! $user) {
             return $query->published();
         }
 
@@ -159,13 +163,13 @@ class Answer extends Model
         // 3. Unpublished answers from users with lower level
         return $query->where(function ($q) use ($user) {
             $q->published()
-              ->orWhere('user_id', $user->id)
-              ->orWhere(function ($subQuery) use ($user) {
-                  $subQuery->where('published', false)
-                           ->whereHas('user', function ($userQuery) use ($user) {
-                               $userQuery->where('level', '<', $user->level);
-                           });
-              });
+                ->orWhere('user_id', $user->id)
+                ->orWhere(function ($subQuery) use ($user) {
+                    $subQuery->where('published', false)
+                        ->whereHas('user', function ($userQuery) use ($user) {
+                            $userQuery->where('level', '<', $user->level);
+                        });
+                });
         });
     }
 }

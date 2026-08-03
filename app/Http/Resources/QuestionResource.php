@@ -34,12 +34,12 @@ class QuestionResource extends JsonResource
             'category' => new CategoryResource($this->whenLoaded('category')),
             'tags' => TagResource::collection($this->whenLoaded('tags')),
             'answers_count' => $this->whenCounted('answers'),
-            'unpublished_answers_count' => isset($this->resource->unpublished_answers_count) 
-                ? (int) $this->resource->unpublished_answers_count 
+            'unpublished_answers_count' => isset($this->resource->unpublished_answers_count)
+                ? (int) $this->resource->unpublished_answers_count
                 : 0,
             'comments_count' => $this->whenCounted('comments', 0),
-            'unpublished_comments_count' => isset($this->resource->unpublished_comments_count) 
-                ? (int) $this->resource->unpublished_comments_count 
+            'unpublished_comments_count' => isset($this->resource->unpublished_comments_count)
+                ? (int) $this->resource->unpublished_comments_count
                 : 0,
             'votes_count' => $this->whenCounted('votes'),
             'votes' => [
@@ -54,7 +54,7 @@ class QuestionResource extends JsonResource
             'is_featured_by_user' => (bool) ($this->is_featured_by_user ?? false),
             'featured_at' => $this->featured_at ? $this->featured_at : null,
             'answers' => AnswerResource::collection($this->whenLoaded('answers')),
-            'comments' => \App\Http\Resources\CommentResource::collection($this->whenLoaded('comments')),
+            'comments' => CommentResource::collection($this->whenLoaded('comments')),
             'can' => [
                 'view' => $request->user()?->can('view', $this->resource) ?? false,
                 'publish' => $request->user()?->can('publish', $this->resource) ?? false,
@@ -62,7 +62,7 @@ class QuestionResource extends JsonResource
                 'unfeature' => $request->user()?->can('unfeature', $this->resource) ?? false,
                 'update' => $request->user()?->can('update', $this->resource) ?? false,
                 'delete' => $request->user()?->can('delete', $this->resource) ?? false,
-            ]
+            ],
         ];
     }
 
@@ -79,6 +79,7 @@ class QuestionResource extends JsonResource
         // Fall back to query for non-optimized calls (e.g., show method)
         if ($request->user()) {
             $userVoteRecord = $this->votes()->where('user_id', $request->user()->id)->first();
+
             return $userVoteRecord ? $userVoteRecord->type : null;
         }
 

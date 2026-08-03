@@ -2,17 +2,15 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use App\Models\Category;
-use App\Models\Tag;
-use App\Models\Question;
 use App\Models\Answer;
+use App\Models\Category;
 use App\Models\Comment;
+use App\Models\Question;
+use App\Models\Tag;
 use App\Models\User;
-use Ybazli\Faker\Facades\Faker;
 use Faker\Factory as FakerFactory;
+use Illuminate\Database\Seeder;
+use Ybazli\Faker\Facades\Faker;
 
 class PersianDataSeeder extends Seeder
 {
@@ -85,7 +83,7 @@ class PersianDataSeeder extends Seeder
             'بلاکچین' => 'blockchain',
             'کلود کامپیوتینگ' => 'cloud-computing',
             'دیتا ساینس' => 'data-science',
-            'شبکه' => 'networking'
+            'شبکه' => 'networking',
         ];
 
         foreach ($mainCategories as $name => $slug) {
@@ -136,7 +134,7 @@ class PersianDataSeeder extends Seeder
                 'Python' => 'python',
                 'Java' => 'java',
                 'C++' => 'cpp',
-                'C#' => 'csharp'
+                'C#' => 'csharp',
             ],
             'طراحی وب' => [
                 'HTML/CSS' => 'html-css',
@@ -144,64 +142,64 @@ class PersianDataSeeder extends Seeder
                 'Vue.js' => 'vuejs',
                 'Angular' => 'angular',
                 'Bootstrap' => 'bootstrap',
-                'Tailwind CSS' => 'tailwind-css'
+                'Tailwind CSS' => 'tailwind-css',
             ],
             'هوش مصنوعی' => [
                 'یادگیری ماشین' => 'machine-learning',
                 'پردازش زبان طبیعی' => 'nlp',
                 'بینایی کامپیوتر' => 'computer-vision',
                 'شبکه‌های عصبی' => 'neural-networks',
-                'یادگیری عمیق' => 'deep-learning'
+                'یادگیری عمیق' => 'deep-learning',
             ],
             'امنیت سایبری' => [
                 'امنیت وب' => 'web-security',
                 'رمزنگاری' => 'cryptography',
                 'تست نفوذ' => 'penetration-testing',
                 'امنیت شبکه' => 'network-security',
-                'فورنزیک دیجیتال' => 'digital-forensics'
+                'فورنزیک دیجیتال' => 'digital-forensics',
             ],
             'پایگاه داده' => [
                 'MySQL' => 'mysql',
                 'PostgreSQL' => 'postgresql',
                 'MongoDB' => 'mongodb',
                 'Redis' => 'redis',
-                'SQLite' => 'sqlite'
+                'SQLite' => 'sqlite',
             ],
             'موبایل' => [
                 'Android' => 'android',
                 'iOS' => 'ios',
                 'React Native' => 'react-native',
                 'Flutter' => 'flutter',
-                'Xamarin' => 'xamarin'
+                'Xamarin' => 'xamarin',
             ],
             'بلاکچین' => [
                 'Bitcoin' => 'bitcoin',
                 'Ethereum' => 'ethereum',
                 'Smart Contracts' => 'smart-contracts',
                 'DeFi' => 'defi',
-                'NFT' => 'nft'
+                'NFT' => 'nft',
             ],
             'کلود کامپیوتینگ' => [
                 'AWS' => 'aws',
                 'Azure' => 'azure',
                 'Google Cloud' => 'google-cloud',
                 'Docker' => 'docker',
-                'Kubernetes' => 'kubernetes'
+                'Kubernetes' => 'kubernetes',
             ],
             'دیتا ساینس' => [
                 'تحلیل داده' => 'data-analysis',
                 'بصری‌سازی داده' => 'data-visualization',
                 'آمار' => 'statistics',
                 'پایتون برای دیتا' => 'python-data',
-                'R' => 'r-language'
+                'R' => 'r-language',
             ],
             'شبکه' => [
                 'TCP/IP' => 'tcp-ip',
                 'DNS' => 'dns',
                 'VPN' => 'vpn',
                 'فایروال' => 'firewall',
-                'روتر و سوئیچ' => 'router-switch'
-            ]
+                'روتر و سوئیچ' => 'router-switch',
+            ],
         ];
 
         return $subCategories[$parentName] ?? [];
@@ -267,7 +265,7 @@ class PersianDataSeeder extends Seeder
             'Bard' => 'bard',
             'DALL-E' => 'dall-e',
             'Midjourney' => 'midjourney',
-            'Stable Diffusion' => 'stable-diffusion'
+            'Stable Diffusion' => 'stable-diffusion',
         ];
 
         foreach ($tagNames as $name => $slug) {
@@ -302,7 +300,7 @@ class PersianDataSeeder extends Seeder
             'بهترین منابع برای یادگیری {topic}',
             'چگونه {topic} را در پروژه‌های واقعی استفاده کنیم؟',
             'نکات امنیتی در {topic}',
-            'عملکرد {topic} چگونه است؟'
+            'عملکرد {topic} چگونه است؟',
         ];
 
         $topics = [
@@ -323,7 +321,7 @@ class PersianDataSeeder extends Seeder
             'Smart Contracts', 'DeFi', 'NFT', 'AWS', 'Azure', 'Google Cloud',
             'Docker', 'Kubernetes', 'تحلیل داده', 'بصری‌سازی داده', 'آمار',
             'پایتون برای دیتا', 'R', 'TCP/IP', 'DNS', 'VPN', 'فایروال',
-            'روتر و سوئیچ', 'HTML/CSS', 'Bootstrap', 'Tailwind CSS'
+            'روتر و سوئیچ', 'HTML/CSS', 'Bootstrap', 'Tailwind CSS',
         ];
 
         $questions = [];
@@ -338,7 +336,7 @@ class PersianDataSeeder extends Seeder
             $title = str_replace(['{topic}', '{topic1}', '{topic2}'], [
                 $topic,
                 $topics[array_rand($topics)],
-                $topics[array_rand($topics)]
+                $topics[array_rand($topics)],
             ], $template);
 
             $question = Question::create([
@@ -357,7 +355,7 @@ class PersianDataSeeder extends Seeder
 
             // Attach random tags to the question
             $randomTags = array_rand($tags, rand(2, 5));
-            if (!is_array($randomTags)) {
+            if (! is_array($randomTags)) {
                 $randomTags = [$randomTags];
             }
 
@@ -370,8 +368,6 @@ class PersianDataSeeder extends Seeder
 
         return $questions;
     }
-
-
 
     /**
      * Create answers for questions

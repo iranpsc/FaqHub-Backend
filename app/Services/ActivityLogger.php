@@ -11,18 +11,14 @@ class ActivityLogger
 {
     /**
      * Log when a question is created
-     *
-     * @param Question $question
-     * @param User|null $user
-     * @return void
      */
     public function logQuestionCreated(Question $question, ?User $user = null): void
     {
-        if (!$user) {
+        if (! $user) {
             $user = $question->user;
         }
 
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
@@ -39,18 +35,14 @@ class ActivityLogger
 
     /**
      * Log when an answer is created
-     *
-     * @param Answer $answer
-     * @param User|null $user
-     * @return void
      */
     public function logAnswerCreated(Answer $answer, ?User $user = null): void
     {
-        if (!$user) {
+        if (! $user) {
             $user = $answer->user;
         }
 
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
@@ -67,18 +59,14 @@ class ActivityLogger
 
     /**
      * Log when a comment is created
-     *
-     * @param Comment $comment
-     * @param User|null $user
-     * @return void
      */
     public function logCommentCreated(Comment $comment, ?User $user = null): void
     {
-        if (!$user) {
+        if (! $user) {
             $user = $comment->user;
         }
 
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
@@ -100,10 +88,8 @@ class ActivityLogger
     /**
      * Log voting activity (final state only)
      *
-     * @param mixed $votable Question, Answer, or Comment
-     * @param User $user
-     * @param string $voteType 'up' or 'down'
-     * @return void
+     * @param  mixed  $votable  Question, Answer, or Comment
+     * @param  string  $voteType  'up' or 'down'
      */
     public function logVote($votable, User $user, string $voteType): void
     {
@@ -126,9 +112,7 @@ class ActivityLogger
     /**
      * Log when content is published
      *
-     * @param Question|Answer|Comment $subject
-     * @param User $publisher
-     * @return void
+     * @param  Question|Answer|Comment  $subject
      */
     public function logPublishing($subject, User $publisher): void
     {
@@ -154,10 +138,6 @@ class ActivityLogger
 
     /**
      * Log when a question is featured
-     *
-     * @param Question $question
-     * @param User $user
-     * @return void
      */
     public function logFeaturing(Question $question, User $user): void
     {
@@ -174,10 +154,6 @@ class ActivityLogger
 
     /**
      * Log when a question is unfeatured
-     *
-     * @param Question $question
-     * @param User $user
-     * @return void
      */
     public function logUnfeaturing(Question $question, User $user): void
     {
@@ -194,11 +170,6 @@ class ActivityLogger
 
     /**
      * Log when an answer is marked as correct
-     *
-     * @param Answer $answer
-     * @param User $user
-     * @param bool $isCorrect
-     * @return void
      */
     public function logAnswerCorrectness(Answer $answer, User $user, bool $isCorrect): void
     {
@@ -216,9 +187,6 @@ class ActivityLogger
 
     /**
      * Get question from commentable (Comment can be on Question or Answer)
-     *
-     * @param Comment $comment
-     * @return Question|null
      */
     private function getQuestionFromCommentable(Comment $comment): ?Question
     {
@@ -236,8 +204,7 @@ class ActivityLogger
     /**
      * Get question from votable (Question, Answer, or Comment)
      *
-     * @param mixed $votable
-     * @return Question|null
+     * @param  mixed  $votable
      */
     private function getQuestionFromVotable($votable): ?Question
     {
@@ -259,8 +226,7 @@ class ActivityLogger
     /**
      * Get question from subject (Question, Answer, or Comment)
      *
-     * @param mixed $subject
-     * @return Question|null
+     * @param  mixed  $subject
      */
     private function getQuestionFromSubject($subject): ?Question
     {
@@ -279,4 +245,3 @@ class ActivityLogger
         return null;
     }
 }
-

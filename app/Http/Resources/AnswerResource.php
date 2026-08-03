@@ -31,8 +31,7 @@ class AnswerResource extends JsonResource
                 'user_vote' => $this->votes->where('user_id', $request->user()?->id)->first()?->type,
             ],
             'can' => [
-                'toggle_correctness' =>
-                $request->user()?->can('toggleCorrectness', [$this->resource, $this->getToggleAction()])
+                'toggle_correctness' => $request->user()?->can('toggleCorrectness', [$this->resource, $this->getToggleAction()])
                     ?? false,
                 'update' => $request->user()?->can('update', $this->resource) ?? false,
                 'delete' => $request->user()?->can('delete', $this->resource) ?? false,

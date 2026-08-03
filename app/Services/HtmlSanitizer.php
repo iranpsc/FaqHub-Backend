@@ -82,14 +82,14 @@ class HtmlSanitizer
     protected array $stripTags = [
         'script', 'style', 'noscript', 'iframe', 'object', 'embed',
         'form', 'input', 'button', 'select', 'textarea', 'applet',
-        'meta', 'link', 'base', 'frame', 'frameset'
+        'meta', 'link', 'base', 'frame', 'frameset',
     ];
 
     /**
      * Dangerous URL protocols
      */
     protected array $dangerousProtocols = [
-        'javascript:', 'vbscript:', 'data:', 'file:'
+        'javascript:', 'vbscript:', 'data:', 'file:',
     ];
 
     /**
@@ -103,7 +103,7 @@ class HtmlSanitizer
         'border', 'border-color', 'border-width', 'border-style',
         'width', 'height', 'max-width', 'max-height', 'min-width', 'min-height',
         'display', 'float', 'clear', 'vertical-align',
-        'list-style-type', 'list-style'
+        'list-style-type', 'list-style',
     ];
 
     /**
@@ -132,13 +132,13 @@ class HtmlSanitizer
         foreach ($this->stripTags as $tag) {
             // Remove tag and its content
             $html = preg_replace(
-                '/<' . $tag . '\b[^>]*>.*?<\/' . $tag . '>/is',
+                '/<'.$tag.'\b[^>]*>.*?<\/'.$tag.'>/is',
                 '',
                 $html
             );
             // Remove self-closing versions
             $html = preg_replace(
-                '/<' . $tag . '\b[^>]*\/?>/is',
+                '/<'.$tag.'\b[^>]*\/?>/is',
                 '',
                 $html
             );
@@ -159,11 +159,11 @@ class HtmlSanitizer
         libxml_use_internal_errors(true);
 
         // Wrap in a container to handle fragments
-        $wrappedHtml = '<div id="sanitizer-wrapper">' . $html . '</div>';
+        $wrappedHtml = '<div id="sanitizer-wrapper">'.$html.'</div>';
 
         // Load HTML with UTF-8 encoding
         $dom->loadHTML(
-            '<?xml encoding="UTF-8">' . $wrappedHtml,
+            '<?xml encoding="UTF-8">'.$wrappedHtml,
             LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
         );
 
@@ -179,6 +179,7 @@ class HtmlSanitizer
             foreach ($wrapper->childNodes as $child) {
                 $result .= $dom->saveHTML($child);
             }
+
             return $result;
         }
 
@@ -198,9 +199,10 @@ class HtmlSanitizer
         $tagName = strtolower($node->tagName);
 
         // Check if tag is allowed
-        if (!isset($this->allowedTags[$tagName]) && $tagName !== 'div') {
+        if (! isset($this->allowedTags[$tagName]) && $tagName !== 'div') {
             // Remove disallowed tags but keep their text content
             $this->unwrapNode($node);
+
             return;
         }
 
@@ -224,7 +226,7 @@ class HtmlSanitizer
     protected function unwrapNode(\DOMNode $node): void
     {
         $parent = $node->parentNode;
-        if (!$parent) {
+        if (! $parent) {
             return;
         }
 
@@ -256,12 +258,14 @@ class HtmlSanitizer
             // Remove event handlers
             if (str_starts_with($attrName, 'on')) {
                 $toRemove[] = $attr->name;
+
                 continue;
             }
 
             // Check if attribute is allowed
-            if (!in_array($attrName, $allowedAttrs)) {
+            if (! in_array($attrName, $allowedAttrs)) {
                 $toRemove[] = $attr->name;
+
                 continue;
             }
 
@@ -273,6 +277,7 @@ class HtmlSanitizer
                 } else {
                     $element->setAttribute($attr->name, $sanitizedUrl);
                 }
+
                 continue;
             }
 
@@ -284,6 +289,7 @@ class HtmlSanitizer
                 } else {
                     $element->setAttribute($attr->name, $sanitizedStyle);
                 }
+
                 continue;
             }
 
@@ -355,7 +361,7 @@ class HtmlSanitizer
             $value = trim($parts[1]);
 
             // Only allow whitelisted properties
-            if (!in_array($property, $this->allowedCssProperties)) {
+            if (! in_array($property, $this->allowedCssProperties)) {
                 continue;
             }
 
@@ -367,7 +373,7 @@ class HtmlSanitizer
                 continue;
             }
 
-            $sanitized[] = $property . ': ' . $value;
+            $sanitized[] = $property.': '.$value;
         }
 
         return implode('; ', $sanitized);
@@ -385,4 +391,3 @@ class HtmlSanitizer
         return htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 }
-

@@ -57,10 +57,15 @@ class SecureImage implements ValidationRule
     ];
 
     protected int $maxPixelCount;
+
     protected ?int $minWidth;
+
     protected ?int $minHeight;
+
     protected ?int $maxWidth;
+
     protected ?int $maxHeight;
+
     protected int $maxFileSize;
 
     public function __construct(
@@ -94,20 +99,20 @@ class SecureImage implements ValidationRule
     }
 
     /**
-     * @param string $attribute
-     * @param mixed $value
-     * @param Closure(string, string|null): void $fail
+     * @param  Closure(string, string|null): void  $fail
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if (!$value instanceof UploadedFile) {
+        if (! $value instanceof UploadedFile) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute must be an uploaded file.');
+
             return;
         }
-        if (!$value->isValid() || $value->getSize() === 0) {
+        if (! $value->isValid() || $value->getSize() === 0) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute is not a valid upload.');
+
             return;
         }
 
@@ -115,15 +120,17 @@ class SecureImage implements ValidationRule
         if ($value->getSize() > $this->maxFileSize) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute file size exceeds the maximum allowed.');
+
             return;
         }
 
         $path = $value->getPathname();
 
         // Check for dangerous extensions (including double extensions like image.php.jpg)
-        if (!$this->hasSecureFilename($value)) {
+        if (! $this->hasSecureFilename($value)) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute has a potentially dangerous filename.');
+
             return;
         }
 
@@ -131,13 +138,15 @@ class SecureImage implements ValidationRule
         if ($this->containsNullByte($value->getClientOriginalName())) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute filename contains invalid characters.');
+
             return;
         }
 
         // Scan file content for dangerous patterns (polyglot detection)
-        if (!$this->isContentSafe($path)) {
+        if (! $this->isContentSafe($path)) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute contains potentially malicious content.');
+
             return;
         }
 
@@ -150,9 +159,10 @@ class SecureImage implements ValidationRule
         }
 
         $imageSize = @getimagesize($path);
-        if ($imageSize === false || !isset($imageSize[0], $imageSize[1])) {
+        if ($imageSize === false || ! isset($imageSize[0], $imageSize[1])) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute is not a valid image.');
+
             return;
         }
         $width = (int) $imageSize[0];
@@ -162,20 +172,23 @@ class SecureImage implements ValidationRule
         if ($mimeFromExif === null && isset($imageSize['mime']) && is_string($imageSize['mime'])) {
             $mimeFromExif = $imageSize['mime'];
         }
-        if ($mimeFromExif === null || !isset($this->allowedMimeTypes[$mimeFromExif])) {
+        if ($mimeFromExif === null || ! isset($this->allowedMimeTypes[$mimeFromExif])) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute must be a valid image (jpeg, png, webp).');
+
             return;
         }
 
         if ($totalPixels <= 0) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute is not a valid image.');
+
             return;
         }
         if ($totalPixels > $this->maxPixelCount) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute image is too large.');
+
             return;
         }
 
@@ -183,21 +196,25 @@ class SecureImage implements ValidationRule
         if ($this->minWidth !== null && $width < $this->minWidth) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute width is too small.');
+
             return;
         }
         if ($this->minHeight !== null && $height < $this->minHeight) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute height is too small.');
+
             return;
         }
         if ($this->maxWidth !== null && $width > $this->maxWidth) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute width exceeds the maximum allowed.');
+
             return;
         }
         if ($this->maxHeight !== null && $height > $this->maxHeight) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute height exceeds the maximum allowed.');
+
             return;
         }
 
@@ -205,27 +222,31 @@ class SecureImage implements ValidationRule
         $mimeFromFinfo = $finfo->file($path) ?: '';
         $mimeFromFramework = (string) $value->getMimeType();
 
-        if (!isset($this->allowedMimeTypes[$mimeFromExif])) {
+        if (! isset($this->allowedMimeTypes[$mimeFromExif])) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute image type is not allowed.');
+
             return;
         }
         if ($mimeFromFinfo !== $mimeFromExif) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute file type could not be verified.');
+
             return;
         }
         if ($mimeFromFramework !== '' && $mimeFromFramework !== $mimeFromExif) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute file type does not match its contents.');
+
             return;
         }
 
         // Final verification: attempt to actually load the image with GD
         // This catches sophisticated attacks that pass header checks but aren't valid images
-        if (!$this->canLoadWithGd($path, $mimeFromExif)) {
+        if (! $this->canLoadWithGd($path, $mimeFromExif)) {
             /** @phpstan-ignore-next-line */
             $fail($attribute, 'The :attribute could not be processed as a valid image.');
+
             return;
         }
     }
@@ -258,7 +279,7 @@ class SecureImage implements ValidationRule
 
         // Ensure extension matches allowed image types
         $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-        if (!in_array($extension, $allowedExtensions, true)) {
+        if (! in_array($extension, $allowedExtensions, true)) {
             return false;
         }
 
@@ -342,7 +363,7 @@ class SecureImage implements ValidationRule
      */
     protected function canLoadWithGd(string $path, string $mimeType): bool
     {
-        if (!extension_loaded('gd')) {
+        if (! extension_loaded('gd')) {
             // If GD isn't available, we can't do this check - rely on other validations
             return true;
         }
@@ -357,11 +378,10 @@ class SecureImage implements ValidationRule
         if ($image instanceof GdImage) {
             // Successfully loaded - clean up and return true
             imagedestroy($image);
+
             return true;
         }
 
         return false;
     }
 }
-
-

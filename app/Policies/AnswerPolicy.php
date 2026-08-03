@@ -14,33 +14,27 @@ class AnswerPolicy
     /**
      * Determine whether the user can update the model.
      *
-     * @param  \App\Models\User  $user
-     * @param  \App\Models\Answer  $answer
-     * @return \Illuminate\Auth\Access\Response|bool
+     * @return Response|bool
      */
     public function update(User $user, Answer $answer)
     {
-        return $answer->user->is($user) && !$answer->published;
+        return $answer->user->is($user) && ! $answer->published;
     }
 
     /**
      * Determine whether the user can delete the model.
      *
-     * @param  \App\Models\User  $user
-     * @param  \App\Models\Answer  $answer
-     * @return \Illuminate\Auth\Access\Response|bool
+     * @return Response|bool
      */
     public function delete(User $user, Answer $answer)
     {
-        return $answer->user->is($user) && !$answer->published;
+        return $answer->user->is($user) && ! $answer->published;
     }
 
     /**
      * Determine whether the user can publish the model.
      *
-     * @param  \App\Models\User  $user
-     * @param  \App\Models\Answer  $answer
-     * @return \Illuminate\Auth\Access\Response|bool
+     * @return Response|bool
      */
     public function publish(User $user, Answer $answer)
     {
@@ -61,9 +55,6 @@ class AnswerPolicy
     /**
      * Check if user can toggle correctness of answer.
      *
-     * @param  \App\Models\User  $user
-     * @param  \App\Models\Answer  $answer
-     * @param  string  $action
      * @return bool
      */
     public function toggleCorrectness(User $user, Answer $answer, string $action): bool|Response
@@ -105,7 +96,7 @@ class AnswerPolicy
             }
 
             // Can't unmark if answer is already normal
-            if (!$answer->is_correct) {
+            if (! $answer->is_correct) {
                 return Response::deny(__('This answer is already marked as normal.'));
             }
 
