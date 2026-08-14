@@ -18,7 +18,7 @@ class FetchUserLevelTest extends TestCase
         $user = User::factory()->create(['level' => 2, 'score' => 10, 'email' => 'level@example.com']);
 
         Http::fake([
-            'https://api.rgb.irpsc.com/api/users/level@example.com/level' => Http::response([
+            'https://api.metarang.com/api/users/level@example.com/level' => Http::response([
                 'level' => ['slug' => '5'],
                 'score' => 7,
             ], 200),
@@ -36,7 +36,7 @@ class FetchUserLevelTest extends TestCase
         $user = User::factory()->create(['level' => 5, 'score' => 10, 'email' => 'same@example.com']);
 
         Http::fake([
-            'https://api.rgb.irpsc.com/api/users/same@example.com/level' => Http::response([
+            'https://api.metarang.com/api/users/same@example.com/level' => Http::response([
                 'level' => ['slug' => '5'],
                 'score' => 100,
             ], 200),
@@ -54,7 +54,7 @@ class FetchUserLevelTest extends TestCase
         $user = User::factory()->create(['level' => 8, 'score' => 50, 'email' => 'down@example.com']);
 
         Http::fake([
-            'https://api.rgb.irpsc.com/api/users/down@example.com/level' => Http::response([
+            'https://api.metarang.com/api/users/down@example.com/level' => Http::response([
                 'level' => ['slug' => '3'],
                 'score' => 20,
             ], 200),
@@ -72,7 +72,7 @@ class FetchUserLevelTest extends TestCase
         $user = User::factory()->create(['level' => 4, 'score' => 12, 'email' => 'fail@example.com']);
 
         Http::fake([
-            'https://api.rgb.irpsc.com/api/users/fail@example.com/level' => Http::response('error', 500),
+            'https://api.metarang.com/api/users/fail@example.com/level' => Http::response('error', 500),
         ]);
 
         Log::shouldReceive('error')->once();
@@ -89,7 +89,7 @@ class FetchUserLevelTest extends TestCase
         $user = User::factory()->create(['level' => 4, 'score' => 12, 'email' => 'missing@example.com']);
 
         Http::fake([
-            'https://api.rgb.irpsc.com/api/users/missing@example.com/level' => Http::response([
+            'https://api.metarang.com/api/users/missing@example.com/level' => Http::response([
                 'score' => 5,
             ], 200),
         ]);

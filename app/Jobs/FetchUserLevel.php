@@ -24,7 +24,7 @@ class FetchUserLevel implements ShouldQueue
      */
     public function handle(): void
     {
-        $url = sprintf('https://api.rgb.irpsc.com/api/users/%s/level', $this->user->email);
+        $url = sprintf('https://api.metarang.com/api/users/%s/level', $this->user->email);
 
         $response = Http::get($url);
 
