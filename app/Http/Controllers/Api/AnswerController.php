@@ -84,6 +84,10 @@ class AnswerController extends Controller
             'published' => false, // All answers are unpublished by default
         ]);
 
+        $question->update([
+            'last_activity' => now(),
+        ]);
+
         // Log answer creation
         $this->activityLogger->logAnswerCreated($answer, $user);
 
@@ -96,6 +100,10 @@ class AnswerController extends Controller
     public function update(UpdateAnswerRequest $request, Answer $answer)
     {
         $answer->update($request->validated());
+
+        $answer->question->update([
+            'last_activity' => now(),
+        ]);
 
         return new AnswerResource($answer);
     }
