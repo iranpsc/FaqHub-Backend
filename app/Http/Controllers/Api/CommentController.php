@@ -122,6 +122,12 @@ class CommentController extends Controller
             }
         }
 
+        if ($question) {
+            $question->update([
+                'last_activity' => now(),
+            ]);
+        }
+
         return response()->json([
             'data' => new CommentResource($comment->load('user')),
             'message' => 'نظر با موفقیت اضافه شد',
@@ -131,6 +137,10 @@ class CommentController extends Controller
     public function update(UpdateCommentRequest $request, Comment $comment)
     {
         $comment->update($request->validated());
+
+        $comment->commentable->update([
+            'last_activity' => now(),
+        ]);
 
         return new CommentResource($comment);
     }
