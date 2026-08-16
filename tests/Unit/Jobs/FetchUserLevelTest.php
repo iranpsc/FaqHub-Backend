@@ -15,10 +15,10 @@ class FetchUserLevelTest extends TestCase
 
     public function test_successful_response_updates_level(): void
     {
-        $user = User::factory()->create(['level' => 2, 'score' => 10, 'email' => 'level@example.com']);
+        $user = User::factory()->create(['level' => 2, 'score' => 10, 'code' => 'hm-2000001']);
 
         Http::fake([
-            'https://api.metarang.com/api/users/level@example.com/level' => Http::response([
+            'https://api.metarang.com/api/user/hm-2000001/level' => Http::response([
                 'level' => ['slug' => '5'],
                 'score' => 7,
             ], 200),
@@ -33,10 +33,10 @@ class FetchUserLevelTest extends TestCase
 
     public function test_score_is_not_incremented_when_level_does_not_increase(): void
     {
-        $user = User::factory()->create(['level' => 5, 'score' => 10, 'email' => 'same@example.com']);
+        $user = User::factory()->create(['level' => 5, 'score' => 10, 'code' => 'hm-2000001']);
 
         Http::fake([
-            'https://api.metarang.com/api/users/same@example.com/level' => Http::response([
+            'https://api.metarang.com/api/user/hm-2000001/level' => Http::response([
                 'level' => ['slug' => '5'],
                 'score' => 100,
             ], 200),
@@ -51,10 +51,10 @@ class FetchUserLevelTest extends TestCase
 
     public function test_score_is_not_incremented_when_level_decreases(): void
     {
-        $user = User::factory()->create(['level' => 8, 'score' => 50, 'email' => 'down@example.com']);
+        $user = User::factory()->create(['level' => 8, 'score' => 50, 'code' => 'hm-2000001']);
 
         Http::fake([
-            'https://api.metarang.com/api/users/down@example.com/level' => Http::response([
+            'https://api.metarang.com/api/user/hm-2000001/level' => Http::response([
                 'level' => ['slug' => '3'],
                 'score' => 20,
             ], 200),
@@ -69,10 +69,10 @@ class FetchUserLevelTest extends TestCase
 
     public function test_failed_http_response_leaves_user_unchanged_and_logs_error(): void
     {
-        $user = User::factory()->create(['level' => 4, 'score' => 12, 'email' => 'fail@example.com']);
+        $user = User::factory()->create(['level' => 4, 'score' => 12, 'code' => 'hm-2000001']);
 
         Http::fake([
-            'https://api.metarang.com/api/users/fail@example.com/level' => Http::response('error', 500),
+            'https://api.metarang.com/api/user/hm-2000001/level' => Http::response('error', 500),
         ]);
 
         Log::shouldReceive('error')->once();
@@ -86,10 +86,10 @@ class FetchUserLevelTest extends TestCase
 
     public function test_missing_level_slug_leaves_user_unchanged_and_logs_warning(): void
     {
-        $user = User::factory()->create(['level' => 4, 'score' => 12, 'email' => 'missing@example.com']);
+        $user = User::factory()->create(['level' => 4, 'score' => 12, 'code' => 'missing-code']);
 
         Http::fake([
-            'https://api.metarang.com/api/users/missing@example.com/level' => Http::response([
+            'https://api.metarang.com/api/user/missing-code/level' => Http::response([
                 'score' => 5,
             ], 200),
         ]);
