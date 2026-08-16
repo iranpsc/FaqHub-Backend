@@ -224,15 +224,72 @@ class DashboardActivityTest extends TestCase
             'title' => 'Will Be Deleted',
             'slug' => 'will-be-deleted',
         ]);
+        $questionId = $question->id;
         $this->logQuestionCreated($question, $user);
         $question->delete();
 
         $response = $this->getJson('/api/dashboard/activity')->assertOk();
 
+        // Title/slug come from activity properties; subject_id remains on the log row
         $this->assertSame('Will Be Deleted', $response->json('data.0.title'));
         $this->assertSame('will-be-deleted', $response->json('data.0.slug'));
-        $this->assertNull($response->json('data.0.question_id'));
+        $this->assertSame($questionId, $response->json('data.0.question_id'));
         $this->assertStringContainsString('Will Be Deleted', $response->json('data.0.description'));
+    }
+
+    public function test_activity_feed_uses_properties_without_loading_subject_content(): void
+    {
+        $user = User::factory()->create(['name' => 'Heavy User']);
+        $hugeContent = str_repeat('محتوای بسیار طولانی برای تست حافظه. ', 5000);
+        $question = Question::factory()->published()->create([
+            'user_id' => $user->id,
+            'title' => 'Light Title',
+            'slug' => 'light-title',
+            'content' => $hugeContent,
+        ]);
+        $answer = Answer::factory()->published()->create([
+            'user_id' => $user->id,
+            'question_id' => $question->id,
+            'content' => $hugeContent,
+        ]);
+        $comment = Comment::factory()->published()->forQuestion($question)->create([
+            'user_id' => $user->id,
+            'content' => $hugeContent,
+        ]);
+
+        $this->logQuestionCreated($question, $user);
+        $this->logAnswerCreated($answer, $user);
+        $this->logCommentCreated($comment, $user);
+
+        $response = $this->getJson('/api/dashboard/activity?limit=10')->assertOk();
+        $encoded = json_encode($response->json());
+
+        $this->assertCount(3, $response->json('data'));
+        $this->assertSame('Light Title', $response->json('data.2.title'));
+        $this->assertStringNotContainsString($hugeContent, $encoded);
+        $this->assertStringNotContainsString('محتوای بسیار طولانی برای تست حافظه.', $encoded);
+    }
+
+    public function test_activity_keeps_comment_entries_after_comment_is_deleted(): void
+    {
+        $user = User::factory()->create(['name' => 'Commenter']);
+        $question = Question::factory()->published()->create([
+            'user_id' => $user->id,
+            'title' => 'Parent Question',
+            'slug' => 'parent-question',
+        ]);
+        $comment = Comment::factory()->published()->forQuestion($question)->create([
+            'user_id' => $user->id,
+        ]);
+        $this->logCommentCreated($comment, $user);
+        $comment->delete();
+
+        $response = $this->getJson('/api/dashboard/activity')->assertOk();
+
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame('comment', $response->json('data.0.type'));
+        $this->assertSame('Parent Question', $response->json('data.0.title'));
+        $this->assertSame('parent-question', $response->json('data.0.question_slug'));
     }
 
     public function test_activity_anonymous_causer_falls_back_to_persian_label(): void
