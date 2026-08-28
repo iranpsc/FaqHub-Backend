@@ -105,7 +105,6 @@ RUN apk add --no-cache \
 RUN addgroup -g 1000 -S faqhub \
     && adduser -u 1000 -S faqhub -G faqhub \
     && mkdir -p \
-        /opt/faqhub \
         /var/www/html/storage/framework/cache/data \
         /var/www/html/storage/framework/sessions \
         /var/www/html/storage/framework/views \
@@ -113,8 +112,9 @@ RUN addgroup -g 1000 -S faqhub \
         /var/www/html/storage/logs \
         /var/www/html/storage/app/private \
         /var/www/html/storage/app/public \
+        /var/www/html/public/sitemaps \
         /var/www/html/bootstrap/cache \
-    && chown -R faqhub:faqhub /var/www/html /opt/faqhub
+    && chown -R faqhub:faqhub /var/www/html
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-faqhub.ini
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/10-opcache.ini
@@ -127,11 +127,7 @@ WORKDIR /var/www/html
 
 COPY --from=vendor --chown=faqhub:faqhub /app /var/www/html
 
-# public/storage points at the host bind-mounted static directory
-RUN chown -R faqhub:faqhub storage bootstrap/cache \
-    && rm -f public/storage \
-    && ln -sfn /opt/faqhub public/storage \
-    && chown -h faqhub:faqhub public/storage
+RUN chown -R faqhub:faqhub storage bootstrap/cache public/sitemaps
 
 # php-fpm master runs as root; pool workers run as faqhub (see www.conf)
 EXPOSE 9000
@@ -151,10 +147,8 @@ COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=app /var/www/html/public /var/www/html/public
 
-RUN mkdir -p /opt/faqhub \
-    && rm -f /var/www/html/public/storage \
-    && ln -sfn /opt/faqhub /var/www/html/public/storage \
-    && chown -R nginx:nginx /var/www/html/public /opt/faqhub
+RUN mkdir -p /var/www/html/public/sitemaps \
+    && chown -R nginx:nginx /var/www/html/public
 
 EXPOSE 80
 

@@ -4,14 +4,15 @@
 #   docker compose up -d --build
 #   docker compose logs -f
 #
-# Static uploads are bind-mounted from the host:
-#   /opt/faqhub  ->  container:/opt/faqhub
+# Host bind mounts (create on the server before first deploy):
+#   ${FAQHUB_STATIC_PATH:-/opt/faqhub}/storage   -> storage/app/public
+#   ${FAQHUB_STATIC_PATH:-/opt/faqhub}/sitemaps  -> public/sitemaps
 #
 # Published ports:
-#   app      ${APP_PORT:-8000}              -> 8000
-#   reverb   ${REVERB_PUBLISH_PORT:-8080}   -> 8080
-#   mysql    ${MYSQL_PORT:-3306}            -> 3306
-#   redis    ${REDIS_PORT_PUBLISH:-6379}    -> 6379
+#   app        ${APP_PORT:-8000}              -> 8000
+#   reverb     ${REVERB_PUBLISH_PORT:-8080}   -> 8080
+#   mysql      ${MYSQL_PORT:-3306}            -> 3306
+#   redis      ${REDIS_PORT_PUBLISH:-6379}    -> 6379
 
 name: faqhub
 
@@ -51,7 +52,8 @@ x-app-common: &app-common
     REVERB_APP_SECRET: ${REVERB_APP_SECRET:-faqhub-secret}
     LOG_CHANNEL: stderr
   volumes:
-    - ${FAQHUB_STATIC_PATH:-/opt/faqhub}:/opt/faqhub
+    - ${FAQHUB_STATIC_PATH:-/opt/faqhub}/storage:/var/www/html/storage/app/public
+    - ${FAQHUB_STATIC_PATH:-/opt/faqhub}/sitemaps:/var/www/html/public/sitemaps
   networks:
     - faqhub
   depends_on:
@@ -69,6 +71,7 @@ services:
       CONTAINER_ROLE: app
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       CACHE_CONFIG: ${CACHE_CONFIG:-true}
+      RUN_STORAGE_LINK: ${RUN_STORAGE_LINK:-true}
     ports:
       - "${APP_PORT:-8000}:8000"
     command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
@@ -87,11 +90,9 @@ services:
       CONTAINER_ROLE: queue
       RUN_MIGRATIONS: "false"
       CACHE_CONFIG: "false"
+      RUN_STORAGE_LINK: ${RUN_STORAGE_LINK:-true}
     healthcheck:
       disable: true
-    depends_on:
-      app:
-        condition: service_healthy
 
   scheduler:
     <<: *app-common
@@ -101,11 +102,9 @@ services:
       CONTAINER_ROLE: scheduler
       RUN_MIGRATIONS: "false"
       CACHE_CONFIG: "false"
+      RUN_STORAGE_LINK: ${RUN_STORAGE_LINK:-true}
     healthcheck:
       disable: true
-    depends_on:
-      app:
-        condition: service_healthy
 
   reverb:
     <<: *app-common
@@ -115,6 +114,7 @@ services:
       CONTAINER_ROLE: reverb
       RUN_MIGRATIONS: "false"
       CACHE_CONFIG: "false"
+      RUN_STORAGE_LINK: ${RUN_STORAGE_LINK:-true}
     ports:
       - "${REVERB_PUBLISH_PORT:-8080}:8080"
     healthcheck:
@@ -123,11 +123,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    depends_on:
-      app:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   mysql:
     image: mysql:8.4
