@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UserFeaturedQuestion extends Model
 {
@@ -36,7 +37,7 @@ class UserFeaturedQuestion extends Model
     /**
      * The user that featured the question.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<User>
+     * @return BelongsTo<User>
      */
     public function user()
     {
@@ -46,7 +47,7 @@ class UserFeaturedQuestion extends Model
     /**
      * The question that was featured.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<Question>
+     * @return BelongsTo<Question>
      */
     public function question()
     {

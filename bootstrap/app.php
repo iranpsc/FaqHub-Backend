@@ -1,11 +1,13 @@
 <?php
 
+use App\Http\Middleware\ApiRateLimiter;
+use App\Http\Middleware\OptionalAuthSanctum;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Session\Middleware\StartSession;
-use Illuminate\Console\Scheduling\Schedule;
-use App\Jobs\GenerateSitemaps;
+use Sentry\Laravel\Integration;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,17 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
-    ->withSchedule(function (Schedule $schedule) {
-        $schedule->job(new GenerateSitemaps)->everyThreeHours();
-    })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(StartSession::class);
-        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+        $middleware->append(SecurityHeaders::class);
+        $middleware->appendToGroup('api', ApiRateLimiter::class);
         $middleware->alias([
-            'auth.optional' => \App\Http\Middleware\OptionalAuthSanctum::class,
-            'throttle.api' => \App\Http\Middleware\ApiRateLimiter::class,
+            'auth.optional' => OptionalAuthSanctum::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        Integration::handles($exceptions);
     })->create();

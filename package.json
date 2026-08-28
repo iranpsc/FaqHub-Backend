@@ -16,27 +16,6 @@
         "vite": "^6.2.4"
     },
     "dependencies": {
-        "@headlessui/vue": "^1.7.23",
-        "@inertiajs/progress": "^0.1.2",
-        "@inertiajs/vue3": "^2.0.17",
-        "@primevue/themes": "^4.3.6",
-        "@tailwindcss/forms": "^0.5.10",
-        "@types/select2": "^4.0.63",
-        "@vitejs/plugin-vue": "^6.0.0",
-        "axios": "^1.10.0",
-        "date-fns-jalali": "^4.1.0-0",
-        "jquery": "^3.7.1",
-        "nprogress": "^0.2.0",
-        "primeicons": "^7.0.0",
-        "primevue": "^4.3.6",
-        "quill": "^2.0.3",
-        "quill-image-resize-module-ts": "^3.0.3",
-        "select2": "^4.1.0-rc.0",
-        "sweetalert2": "^11.6.13",
-        "vue": "^3.5.17",
-        "vue-multiselect": "^3.0.0-beta.3",
-        "vue-router": "^4.5.1",
-        "vue-sweetalert2": "^5.0.11",
-        "vue3-select2-component": "^0.1.7"
+        "axios": "^1.10.0"
     }
 }

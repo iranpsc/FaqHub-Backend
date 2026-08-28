@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AnswerCorrectnessMark extends Model
 {
@@ -35,7 +36,7 @@ class AnswerCorrectnessMark extends Model
     /**
      * Get the answer that this mark belongs to.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function answer()
     {
@@ -45,7 +46,7 @@ class AnswerCorrectnessMark extends Model
     /**
      * Get the user who marked this answer.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function marker()
     {

@@ -45,5 +45,3 @@ return new class extends Migration
         Schema::dropIfExists('wp_to_laravel_users');
     }
 };
-
-

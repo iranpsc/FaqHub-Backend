@@ -22,7 +22,7 @@ class CommentController extends Controller
         $this->middleware('auth.optional')->only(['index', 'show']);
 
         $this->authorizeResource(Comment::class, 'comment', [
-            'except' => ['index']
+            'except' => ['index'],
         ]);
     }
 
@@ -102,7 +102,7 @@ class CommentController extends Controller
             } else {
                 // If we can't determine the parent type, return an error
                 return response()->json([
-                    'message' => 'نوع والد مشخص نشده است'
+                    'message' => 'نوع والد مشخص نشده است',
                 ], 400);
             }
         }
@@ -122,15 +122,25 @@ class CommentController extends Controller
             }
         }
 
+        if ($question) {
+            $question->update([
+                'last_activity' => now(),
+            ]);
+        }
+
         return response()->json([
             'data' => new CommentResource($comment->load('user')),
-            'message' => 'نظر با موفقیت اضافه شد'
+            'message' => 'نظر با موفقیت اضافه شد',
         ], 201);
     }
 
     public function update(UpdateCommentRequest $request, Comment $comment)
     {
         $comment->update($request->validated());
+
+        $comment->commentable->update([
+            'last_activity' => now(),
+        ]);
 
         return new CommentResource($comment);
     }
@@ -166,21 +176,21 @@ class CommentController extends Controller
         // Add 2 score scores for commenting
         $comment->user->increment('score', 2);
 
-        if (!is_null($comment->commentable->user)) {
+        if (! is_null($comment->commentable->user)) {
             $comment->commentable->user->notify(new QuestionInteractionNotification($user, $comment->commentable, 'comment'));
         }
 
         return response()->json([
             'success' => true,
             'data' => new CommentResource($comment),
-            'message' => 'نظر با موفقیت منتشر شد'
+            'message' => 'نظر با موفقیت منتشر شد',
         ]);
     }
 
     public function vote(Request $request, Comment $comment)
     {
         $request->validate([
-            'type' => 'required|in:up,down'
+            'type' => 'required|in:up,down',
         ]);
 
         $userId = $request->user()->id;
@@ -193,6 +203,7 @@ class CommentController extends Controller
 
         if ($existingVote) {
             $comment->load('upVotes', 'downVotes');
+
             return response()->json([
                 'success' => false,
                 'message' => 'شما قبلا به این مورد رای داده‌اید',
@@ -205,7 +216,7 @@ class CommentController extends Controller
         $comment->votes()->create([
             'user_id' => $userId,
             'type' => $voteType,
-            'last_voted_at' => now()
+            'last_voted_at' => now(),
         ]);
 
         // Log voting
@@ -217,7 +228,7 @@ class CommentController extends Controller
         return response()->json([
             'upvotes' => $comment->upVotes->count(),
             'downvotes' => $comment->downVotes->count(),
-            'user_vote' => $voteType
+            'user_vote' => $voteType,
         ]);
     }
 }

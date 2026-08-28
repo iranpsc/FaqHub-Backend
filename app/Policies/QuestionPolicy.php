@@ -4,7 +4,6 @@ namespace App\Policies;
 
 use App\Models\Question;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
 
 class QuestionPolicy
 {
@@ -21,7 +20,7 @@ class QuestionPolicy
      */
     public function view(?User $user, Question $question): bool
     {
-        if ($user && !is_null($question->user)) {
+        if ($user && ! is_null($question->user)) {
             if ($question->user->is($user) || ($user->level > $question->user->level)) {
                 return true;
             }
@@ -47,7 +46,7 @@ class QuestionPolicy
             return false;
         }
 
-        return !$question->published && $question->user->is($user);
+        return ! $question->published && $question->user->is($user);
     }
 
     /**
@@ -59,7 +58,7 @@ class QuestionPolicy
             return false;
         }
 
-        return !$question->published && $question->user->is($user);
+        return ! $question->published && $question->user->is($user);
     }
 
     /**
@@ -102,7 +101,7 @@ class QuestionPolicy
         }
 
         // If question is not published, user cannot feature it
-        if (!$question->published) {
+        if (! $question->published) {
             return false;
         }
 
@@ -139,12 +138,12 @@ class QuestionPolicy
         }
 
         // If question is not featured, user cannot unfeature it
-        if (!$question->featured) {
+        if (! $question->featured) {
             return false;
         }
 
         // If question is not published, user cannot unfeature it
-        if (!$question->published) {
+        if (! $question->published) {
             return false;
         }
 
@@ -164,7 +163,7 @@ class QuestionPolicy
         }
 
         // Only higher level users can unfeature questions
-        if ($user->level < 4 && $question->user->isNot($user) && !is_null($question->user)) {
+        if ($user->level < 4 && $question->user->isNot($user) && ! is_null($question->user)) {
             return false;
         }
 

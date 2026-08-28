@@ -2,11 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
+use App\Services\UsernameGenerator;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
@@ -26,7 +27,7 @@ class UserFactory extends Factory
 
         return [
             'name' => $name,
-            'username' => \App\Services\UsernameGenerator::generate($name),
+            'username' => UsernameGenerator::generate($name),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'mobile' => fake()->phoneNumber(),
@@ -51,6 +52,46 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * User with login email notifications enabled.
+     */
+    public function withLoginNotification(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'login_notification_enabled' => true,
+        ]);
+    }
+
+    /**
+     * User without a username (triggers generation on OAuth callback).
+     */
+    public function withoutUsername(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'username' => null,
+        ]);
+    }
+
+    /**
+     * User with an existing avatar path.
+     */
+    public function withImage(?string $path = 'avatars/existing.jpg'): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'image' => $path,
+        ]);
+    }
+
+    /**
+     * Admin role user.
+     */
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'admin',
         ]);
     }
 }

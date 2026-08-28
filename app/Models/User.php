@@ -3,15 +3,18 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    /** @use HasFactory<UserFactory> */
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -25,15 +28,8 @@ class User extends Authenticatable
         'email_verified_at',
         'mobile',
         'code',
-        'level',
-        'score',
         'image',
-        'access_token',
-        'refresh_token',
-        'expires_in',
-        'token_type',
-        'role',
-        'login_notification_enabled'
+        'login_notification_enabled',
     ];
 
     /**
@@ -87,18 +83,14 @@ class User extends Authenticatable
 
     /**
      * Get the user's image URL.
-     *
-     * @return string|null
      */
     public function getImageUrlAttribute(): ?string
     {
-        return $this->image ? asset('storage/' . $this->image) : null;
+        return $this->image ? asset('storage/'.$this->image) : null;
     }
 
     /**
      * Get the user's level name based on level number.
-     *
-     * @return string
      */
     public function getLevelNameAttribute(): string
     {
@@ -123,8 +115,6 @@ class User extends Authenticatable
 
     /**
      * Determine if the user is an admin.
-     *
-     * @return bool
      */
     public function isAdmin(): bool
     {
@@ -134,7 +124,7 @@ class User extends Authenticatable
     /**
      * Get all questions created by the user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function questions()
     {
@@ -144,7 +134,7 @@ class User extends Authenticatable
     /**
      * Get all questions published by the user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function publishedQuestions()
     {
@@ -154,7 +144,7 @@ class User extends Authenticatable
     /**
      * Get all answers created by the user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function answers()
     {
@@ -164,7 +154,7 @@ class User extends Authenticatable
     /**
      * Get all answers published by the user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function publishedAnswers()
     {
@@ -174,7 +164,7 @@ class User extends Authenticatable
     /**
      * Get all comments created by the user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function comments()
     {
@@ -184,7 +174,7 @@ class User extends Authenticatable
     /**
      * Get all comments published by the user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function publishedComments()
     {
@@ -194,7 +184,7 @@ class User extends Authenticatable
     /**
      * Get all votes by the user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function votes()
     {
@@ -204,7 +194,7 @@ class User extends Authenticatable
     /**
      * Get all verifications by the user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function verifications()
     {
@@ -214,7 +204,7 @@ class User extends Authenticatable
     /**
      * Get all correctness marks made by this user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function correctnessMarks()
     {
@@ -224,7 +214,7 @@ class User extends Authenticatable
     /**
      * Get the questions pinned by this user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany
      */
     public function pinnedQuestions()
     {
@@ -237,7 +227,7 @@ class User extends Authenticatable
     /**
      * Get the questions featured by this user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function featuredQuestions()
     {
@@ -247,7 +237,7 @@ class User extends Authenticatable
     /**
      * Get the questions unfeatured by this user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function unfeaturedQuestions()
     {
@@ -257,7 +247,7 @@ class User extends Authenticatable
     /**
      * Get the answers that user has as correct.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function markedAsCorrectAnswers()
     {
@@ -267,7 +257,7 @@ class User extends Authenticatable
     /**
      * Get the answers that user has marked as normal.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function markedAsNormalAnswers()
     {

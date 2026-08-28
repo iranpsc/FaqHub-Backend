@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Rules\SecureImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use App\Rules\SecureImage;
 
 class UserController extends Controller
 {
@@ -47,9 +47,9 @@ class UserController extends Controller
             ->get()
             ->map(function ($question) {
                 return [
-                    'id' => 'question_' . $question->id,
+                    'id' => 'question_'.$question->id,
                     'type' => 'question',
-                    'description' => 'سوال جدید: ' . $question->title,
+                    'description' => 'سوال جدید: '.$question->title,
                     'created_at' => $question->created_at,
                     'question_slug' => $question->slug,
                 ];
@@ -64,9 +64,9 @@ class UserController extends Controller
             ->get()
             ->map(function ($answer) {
                 return [
-                    'id' => 'answer_' . $answer->id,
+                    'id' => 'answer_'.$answer->id,
                     'type' => 'answer',
-                    'description' => 'پاسخ جدید به: ' . $answer->question->title,
+                    'description' => 'پاسخ جدید به: '.$answer->question->title,
                     'created_at' => $answer->created_at,
                     'question_slug' => $answer->question->slug,
                 ];
@@ -96,9 +96,9 @@ class UserController extends Controller
                 }
 
                 return [
-                    'id' => 'comment_' . $comment->id,
+                    'id' => 'comment_'.$comment->id,
                     'type' => 'comment',
-                    'description' => 'دیدگاه جدید در: ' . $title,
+                    'description' => 'دیدگاه جدید در: '.$title,
                     'created_at' => $comment->created_at,
                     'question_slug' => $questionSlug,
                 ];
@@ -132,7 +132,7 @@ class UserController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'خطا در اعتبارسنجی',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -146,22 +146,22 @@ class UserController extends Controller
 
             // Process and store new image
             $image = $request->file('image');
-            $filename = 'avatars/' . $user->id . '_' . time() . '.' . $image->getClientOriginalExtension();
+            $filename = 'avatars/'.$user->id.'_'.time().'.'.$image->getClientOriginalExtension();
 
             // Store the image
-            $path = $image->storeAs('avatars', $user->id . '_' . time() . '.' . $image->getClientOriginalExtension(), 'public');
+            $path = $image->storeAs('avatars', $user->id.'_'.time().'.'.$image->getClientOriginalExtension(), 'public');
 
             // Update user record
             $user->update(['image' => $path]);
 
             return response()->json([
                 'message' => 'تصویر پروفایل با موفقیت بروزرسانی شد',
-                'image_url' => asset('storage/' . $path)
+                'image_url' => asset('storage/'.$path),
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'خطا در بروزرسانی تصویر پروفایل'
+                'message' => 'خطا در بروزرسانی تصویر پروفایل',
             ], 500);
         }
     }
@@ -200,7 +200,7 @@ class UserController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'خطا در اعتبارسنجی',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 

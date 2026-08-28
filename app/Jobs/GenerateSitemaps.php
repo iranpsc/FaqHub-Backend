@@ -6,22 +6,29 @@ use App\Models\Category;
 use App\Models\Question;
 use App\Models\Tag;
 use App\Models\User;
+use DateTimeInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\File;
-use Spatie\Sitemap\Sitemap;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Sitemap\SitemapIndex;
-use Spatie\Sitemap\Tags\Url as SitemapUrl;
 
 class GenerateSitemaps implements ShouldQueue
 {
-    use Queueable, Dispatchable;
+    use Dispatchable, Queueable;
 
     /**
      * Maximum number of links per sitemap file.
      */
     private const MAX_LINKS_PER_FILE = 5000;
+
+    /**
+     * Number of records fetched from the database per lazy iteration step.
+     */
+    private const LAZY_CHUNK_SIZE = 500;
 
     /**
      * Collected generated sitemap filenames (relative to public/sitemap).
@@ -35,134 +42,225 @@ class GenerateSitemaps implements ShouldQueue
      */
     public function handle(): void
     {
-        $baseUrl = rtrim((string) config('app.url'), '/');
+        $baseUrl = 'https://faqhub.ir';
         $targetDir = public_path('sitemap');
 
         if (! File::exists($targetDir)) {
             File::makeDirectory($targetDir, 0755, true);
         }
 
-        // Generate entity-specific sitemaps
         $this->generateQuestionsSitemaps($baseUrl, $targetDir);
         $this->generateCategoriesSitemaps($baseUrl, $targetDir);
         $this->generateTagsSitemaps($baseUrl, $targetDir);
         $this->generateAuthorsSitemaps($baseUrl, $targetDir);
 
-        // Create a sitemap index referencing all generated files
         if (! empty($this->generatedFiles)) {
             $index = SitemapIndex::create();
             foreach ($this->generatedFiles as $relativeFile) {
-                $index->add($baseUrl . '/sitemap/' . ltrim($relativeFile, '/'));
+                $index->add($baseUrl.'/sitemap/'.ltrim($relativeFile, '/'));
             }
-            $index->writeToFile($targetDir . DIRECTORY_SEPARATOR . 'sitemap.xml');
+            $index->writeToFile($targetDir.DIRECTORY_SEPARATOR.'sitemap.xml');
+            $this->generatedFiles[] = 'sitemap.xml';
+        }
+
+        $this->uploadSitemapsToFtp($targetDir);
+    }
+
+    /**
+     * Upload generated sitemap files to the configured FTP disk.
+     */
+    private function uploadSitemapsToFtp(string $targetDir): void
+    {
+        try {
+            $disk = Storage::disk('ftp');
+            foreach ($this->generatedFiles as $relativeFile) {
+                $localPath = $targetDir.DIRECTORY_SEPARATOR.$relativeFile;
+                if (! File::exists($localPath)) {
+                    continue;
+                }
+
+                $stream = fopen($localPath, 'rb');
+                if ($stream === false) {
+                    continue;
+                }
+
+                try {
+                    $disk->writeStream($relativeFile, $stream);
+                } finally {
+                    fclose($stream);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed to upload sitemaps to FTP: '.$e->getMessage(), [
+                'exception' => $e,
+            ]);
+            throw $e;
         }
     }
 
     private function generateQuestionsSitemaps(string $baseUrl, string $targetDir): void
     {
-        $part = 1;
-        Question::query()
-            ->published()
-            ->orderBy('id')
-            ->chunkById(self::MAX_LINKS_PER_FILE, function ($questions) use (&$part, $baseUrl, $targetDir) {
-                $sitemap = Sitemap::create();
-
-                foreach ($questions as $question) {
-                    $loc = $baseUrl . '/questions/' . ltrim((string) $question->slug, '/');
-                    $tag = SitemapUrl::create($loc);
-                    if ($question->updated_at) {
-                        $tag->setLastModificationDate($question->updated_at);
-                    }
-                    $sitemap->add($tag);
-                }
-
-                $file = "questions-sitemap-{$part}.xml";
-                $sitemap->writeToFile($targetDir . DIRECTORY_SEPARATOR . $file);
-                $this->generatedFiles[] = $file;
-                $part++;
-            });
+        $this->streamEntitySitemaps(
+            $baseUrl,
+            $targetDir,
+            Question::query()
+                ->published()
+                ->select(['id', 'slug', 'updated_at']),
+            'questions',
+            fn ($question, string $baseUrl): array => [
+                $baseUrl.'/questions/'.ltrim((string) $question->slug, '/'),
+                $question->updated_at,
+            ],
+            alwaysNumberParts: true,
+        );
     }
 
     private function generateCategoriesSitemaps(string $baseUrl, string $targetDir): void
     {
-        $part = 1;
-        Category::query()
-            ->orderBy('id')
-            ->chunkById(self::MAX_LINKS_PER_FILE, function ($categories) use (&$part, $baseUrl, $targetDir) {
-                $sitemap = Sitemap::create();
-
-                foreach ($categories as $category) {
-                    $loc = $baseUrl . '/categories/' . ltrim((string) $category->slug, '/');
-                    $tag = SitemapUrl::create($loc);
-                    if ($category->updated_at) {
-                        $tag->setLastModificationDate($category->updated_at);
-                    }
-                    $sitemap->add($tag);
-                }
-
-                $file = $part === 1 && count($categories) < self::MAX_LINKS_PER_FILE
-                    ? 'categories-sitemap.xml'
-                    : "categories-sitemap-{$part}.xml";
-
-                $sitemap->writeToFile($targetDir . DIRECTORY_SEPARATOR . $file);
-                $this->generatedFiles[] = $file;
-                $part++;
-            });
+        $this->streamEntitySitemaps(
+            $baseUrl,
+            $targetDir,
+            Category::query()->select(['id', 'slug', 'updated_at']),
+            'categories',
+            fn ($category, string $baseUrl): array => [
+                $baseUrl.'/categories/'.ltrim((string) $category->slug, '/'),
+                $category->updated_at,
+            ],
+        );
     }
 
     private function generateTagsSitemaps(string $baseUrl, string $targetDir): void
     {
-        $part = 1;
-        Tag::query()
-            ->orderBy('id')
-            ->chunkById(self::MAX_LINKS_PER_FILE, function ($tags) use (&$part, $baseUrl, $targetDir) {
-                $sitemap = Sitemap::create();
-
-                foreach ($tags as $tagModel) {
-                    $loc = $baseUrl . '/tags/' . ltrim((string) $tagModel->slug, '/');
-                    $tag = SitemapUrl::create($loc);
-                    if ($tagModel->updated_at) {
-                        $tag->setLastModificationDate($tagModel->updated_at);
-                    }
-                    $sitemap->add($tag);
-                }
-
-                $file = $part === 1 && count($tags) < self::MAX_LINKS_PER_FILE
-                    ? 'tags-sitemap.xml'
-                    : "tags-sitemap-{$part}.xml";
-
-                $sitemap->writeToFile($targetDir . DIRECTORY_SEPARATOR . $file);
-                $this->generatedFiles[] = $file;
-                $part++;
-            });
+        $this->streamEntitySitemaps(
+            $baseUrl,
+            $targetDir,
+            Tag::query()
+                ->whereHas('questions')
+                ->select(['id', 'slug', 'updated_at']),
+            'tags',
+            fn ($tag, string $baseUrl): array => [
+                $baseUrl.'/tags/'.ltrim((string) $tag->slug, '/'),
+                $tag->updated_at,
+            ],
+        );
     }
 
     private function generateAuthorsSitemaps(string $baseUrl, string $targetDir): void
     {
+        $this->streamEntitySitemaps(
+            $baseUrl,
+            $targetDir,
+            User::query()
+                ->whereNotNull('username')
+                ->select(['id', 'username', 'updated_at']),
+            'authors',
+            fn ($user, string $baseUrl): array => [
+                $baseUrl.'/authors/'.rawurlencode((string) $user->username),
+                $user->updated_at,
+            ],
+        );
+    }
+
+    /**
+     * Stream sitemap XML directly to disk to avoid holding thousands of URLs in memory.
+     *
+     * @param  callable(mixed, string): array{0: string, 1: DateTimeInterface|null}  $urlBuilder
+     */
+    private function streamEntitySitemaps(
+        string $baseUrl,
+        string $targetDir,
+        Builder $query,
+        string $filenamePrefix,
+        callable $urlBuilder,
+        bool $alwaysNumberParts = false,
+    ): void {
         $part = 1;
-        User::query()
-            ->orderBy('id')
-            ->chunkById(self::MAX_LINKS_PER_FILE, function ($users) use (&$part, $baseUrl, $targetDir) {
-                $sitemap = Sitemap::create();
+        $linksInCurrentFile = 0;
+        /** @var resource|null $handle */
+        $handle = null;
+        $currentFile = null;
+        $filesGenerated = [];
 
-                foreach ($users as $user) {
-                    $loc = $baseUrl . '/authors/' . (string) $user->id;
-                    $tag = SitemapUrl::create($loc);
-                    if ($user->updated_at) {
-                        $tag->setLastModificationDate($user->updated_at);
-                    }
-                    $sitemap->add($tag);
-                }
+        foreach ($query->orderBy('id')->lazyById(self::LAZY_CHUNK_SIZE) as $record) {
+            if ($linksInCurrentFile === 0) {
+                $currentFile = "{$filenamePrefix}-sitemap-{$part}.xml";
+                $handle = $this->openSitemapFile($targetDir.DIRECTORY_SEPARATOR.$currentFile);
+            }
 
-                $file = $part === 1 && count($users) < self::MAX_LINKS_PER_FILE
-                    ? 'authors-sitemap.xml'
-                    : "authors-sitemap-{$part}.xml";
+            [$loc, $lastMod] = $urlBuilder($record, $baseUrl);
+            $this->writeSitemapUrl($handle, $loc, $lastMod);
+            $linksInCurrentFile++;
 
-                $sitemap->writeToFile($targetDir . DIRECTORY_SEPARATOR . $file);
-                $this->generatedFiles[] = $file;
+            if ($linksInCurrentFile >= self::MAX_LINKS_PER_FILE) {
+                $this->closeSitemapFile($handle);
+                $handle = null;
+                $filesGenerated[] = $currentFile;
+                $this->generatedFiles[] = $currentFile;
                 $part++;
-            });
+                $linksInCurrentFile = 0;
+                $currentFile = null;
+            }
+        }
+
+        if ($handle !== null) {
+            $this->closeSitemapFile($handle);
+            $filesGenerated[] = $currentFile;
+            $this->generatedFiles[] = $currentFile;
+        }
+
+        if (! $alwaysNumberParts && count($filesGenerated) === 1 && $part === 1) {
+            $numbered = "{$filenamePrefix}-sitemap-1.xml";
+            $simple = "{$filenamePrefix}-sitemap.xml";
+            $numberedPath = $targetDir.DIRECTORY_SEPARATOR.$numbered;
+            $simplePath = $targetDir.DIRECTORY_SEPARATOR.$simple;
+
+            if (File::exists($numberedPath)) {
+                File::move($numberedPath, $simplePath);
+                $key = array_search($numbered, $this->generatedFiles, true);
+                if ($key !== false) {
+                    $this->generatedFiles[$key] = $simple;
+                }
+            }
+        }
+    }
+
+    /**
+     * @return resource
+     */
+    private function openSitemapFile(string $path)
+    {
+        $handle = fopen($path, 'wb');
+        if ($handle === false) {
+            throw new \RuntimeException("Unable to open sitemap file for writing: {$path}");
+        }
+
+        fwrite($handle, '<?xml version="1.0" encoding="UTF-8"?>'.PHP_EOL);
+        fwrite($handle, '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'.PHP_EOL);
+
+        return $handle;
+    }
+
+    /**
+     * @param  resource  $handle
+     */
+    private function writeSitemapUrl($handle, string $loc, ?DateTimeInterface $lastMod): void
+    {
+        fwrite($handle, '  <url>'.PHP_EOL);
+        fwrite($handle, '    <loc>'.htmlspecialchars($loc, ENT_XML1 | ENT_COMPAT, 'UTF-8').'</loc>'.PHP_EOL);
+
+        if ($lastMod !== null) {
+            fwrite($handle, '    <lastmod>'.$lastMod->format(DateTimeInterface::ATOM).'</lastmod>'.PHP_EOL);
+        }
+
+        fwrite($handle, '  </url>'.PHP_EOL);
+    }
+
+    /**
+     * @param  resource  $handle
+     */
+    private function closeSitemapFile($handle): void
+    {
+        fwrite($handle, '</urlset>'.PHP_EOL);
+        fclose($handle);
     }
 }
-
-

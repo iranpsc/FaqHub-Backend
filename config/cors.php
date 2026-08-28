@@ -23,15 +23,7 @@ return [
     // Allowed origins - strict in production, permissive in development
     'allowed_origins' => env('APP_ENV', 'production') === 'production'
         ? ['https://faqhub.ir']
-        : [
-            'https://faqhub.ir',
-            'http://localhost:8000',
-            'http://127.0.0.1:8000',
-            'http://localhost:3000',
-            'http://127.0.0.1:3000',
-            'http://localhost:3005',
-            'http://127.0.0.1:3005',
-        ],
+        : [],
 
     'allowed_origins_patterns' => [],
 

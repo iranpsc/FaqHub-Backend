@@ -6,6 +6,7 @@ use App\Models\Answer;
 use App\Models\Comment;
 use App\Models\Question;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Spatie\Activitylog\Models\Activity;
 
 class ActivityService
@@ -16,18 +17,20 @@ class ActivityService
      * Returns activities from activity_log table, paginated by limit/offset.
      * Activities are grouped by Persian month for frontend display.
      *
-     * @param int $limit Number of activities to return (default: 30)
-     * @param int $offset Number of activities to skip (default: 0)
-     * @return array
+     * Subject models are intentionally not eager-loaded: feed data comes from
+     * activity properties (and subject_type/subject_id columns) so large
+     * content bodies are never hydrated into memory.
+     *
+     * @param  int  $limit  Number of activities to return (default: 15)
+     * @param  int  $offset  Number of activities to skip (default: 0)
      */
-    public function getActivities(int $limit = 30, int $offset = 0): array
+    public function getActivities(int $limit = 15, int $offset = 0): array
     {
         $limit = max(1, min(100, $limit)); // Clamp between 1 and 100
         $offset = max(0, $offset);
 
-        // Query activity_log table, ordered by created_at descending
-        // Eager load causer (user) - subject relationships are polymorphic and handled in transform methods
-        $logs = Activity::with(['causer:id,name,image', 'subject'])
+        // Eager load causer only — never subject (avoids loading longText content)
+        $logs = Activity::with(['causer:id,name,image'])
             ->orderByDesc('created_at')
             ->skip($offset)
             ->take($limit)
@@ -44,14 +47,13 @@ class ActivityService
         $groupedActivities = [];
         foreach ($activities as $activity) {
             $month = $activity['month'] ?? 'نامشخص';
-            if (!isset($groupedActivities[$month])) {
+            if (! isset($groupedActivities[$month])) {
                 $groupedActivities[$month] = [];
             }
             $groupedActivities[$month][] = $activity;
         }
 
-        // Check if there are more activities
-        $hasMore = Activity::count() > ($offset + $limit);
+        $total = Activity::count();
 
         return [
             'activities' => $activities,
@@ -60,28 +62,24 @@ class ActivityService
                 'limit' => $limit,
                 'offset' => $offset,
                 'next_offset' => $offset + $limit,
-                'has_more' => $hasMore,
-                'total' => Activity::count()
-            ]
+                'has_more' => $total > ($offset + $limit),
+                'total' => $total,
+            ],
         ];
     }
 
     /**
      * Transform activity log entry to frontend-compatible format
-     *
-     * @param Activity $log
-     * @return array|null
      */
     private function transformLogToActivity(Activity $log): ?array
     {
         $description = $log->description;
         $causer = $log->causer;
-        $subject = $log->subject;
         // Convert properties to array if it's a Collection
         $properties = $log->properties ?? [];
-        if ($properties instanceof \Illuminate\Support\Collection) {
+        if ($properties instanceof Collection) {
             $properties = $properties->toArray();
-        } elseif (!is_array($properties)) {
+        } elseif (! is_array($properties)) {
             $properties = [];
         }
 
@@ -90,7 +88,7 @@ class ActivityService
         $userImage = $causer?->image_url ?? null;
 
         $baseActivity = [
-            'id' => 'activity_' . $log->id,
+            'id' => 'activity_'.$log->id,
             'user_name' => $userName,
             'user_id' => $userId,
             'user_image' => $userImage,
@@ -100,14 +98,14 @@ class ActivityService
 
         // Map description to activity type and generate appropriate data
         return match ($description) {
-            'created_question' => $this->transformQuestionCreated($log, $baseActivity, $subject, $properties),
-            'created_answer' => $this->transformAnswerCreated($log, $baseActivity, $subject, $properties),
-            'created_comment' => $this->transformCommentCreated($log, $baseActivity, $subject, $properties),
-            'voted' => $this->transformVote($log, $baseActivity, $subject, $properties),
-            'published_question', 'published_answer', 'published_comment' => $this->transformPublishing($log, $baseActivity, $subject, $properties, $description),
-            'featured_question' => $this->transformFeaturing($log, $baseActivity, $subject, $properties, true),
-            'unfeatured_question' => $this->transformFeaturing($log, $baseActivity, $subject, $properties, false),
-            'marked_correct' => $this->transformMarkedCorrect($log, $baseActivity, $subject, $properties),
+            'created_question' => $this->transformQuestionCreated($log, $baseActivity, $properties),
+            'created_answer' => $this->transformAnswerCreated($log, $baseActivity, $properties),
+            'created_comment' => $this->transformCommentCreated($log, $baseActivity, $properties),
+            'voted' => $this->transformVote($log, $baseActivity, $properties),
+            'published_question', 'published_answer', 'published_comment' => $this->transformPublishing($log, $baseActivity, $properties, $description),
+            'featured_question' => $this->transformFeaturing($log, $baseActivity, $properties, true),
+            'unfeatured_question' => $this->transformFeaturing($log, $baseActivity, $properties, false),
+            'marked_correct' => $this->transformMarkedCorrect($log, $baseActivity, $properties),
             default => null,
         };
     }
@@ -115,25 +113,20 @@ class ActivityService
     /**
      * Transform question created activity
      */
-    private function transformQuestionCreated(Activity $log, array $base, $subject, array $properties): ?array
+    private function transformQuestionCreated(Activity $log, array $base, array $properties): ?array
     {
-        // Use properties if subject is deleted
-        $title = $properties['title'] ?? $subject?->title ?? 'سوال حذف شده';
-        $slug = $properties['slug'] ?? $subject?->slug ?? null;
-        $questionId = $subject?->id ?? null;
-
-        // Try to get category name from subject if available
-        $categoryName = null;
-        if ($subject instanceof Question && $subject->relationLoaded('category')) {
-            $categoryName = $subject->category?->name;
-        }
+        $title = $properties['title'] ?? 'سوال حذف شده';
+        $slug = $properties['slug'] ?? null;
+        $questionId = $properties['question_id'] ?? (
+            $log->subject_type === Question::class ? $log->subject_id : null
+        );
 
         return array_merge($base, [
             'type' => 'question',
             'title' => $title,
             'slug' => $slug,
             'question_id' => $questionId,
-            'category_name' => $categoryName,
+            'category_name' => $properties['category_name'] ?? null,
             'description' => "کاربر '{$base['user_name']}' سوال جدیدی با عنوان '{$title}' پرسید",
             'url' => $slug ? "/questions/{$slug}" : null,
         ]);
@@ -142,12 +135,11 @@ class ActivityService
     /**
      * Transform answer created activity
      */
-    private function transformAnswerCreated(Activity $log, array $base, $subject, array $properties): ?array
+    private function transformAnswerCreated(Activity $log, array $base, array $properties): ?array
     {
-        // Use properties if subject is deleted
-        $questionTitle = $properties['question_title'] ?? $subject?->question?->title ?? 'سوال حذف شده';
-        $questionSlug = $properties['question_slug'] ?? $subject?->question?->slug ?? null;
-        $questionId = $properties['question_id'] ?? $subject?->question_id ?? null;
+        $questionTitle = $properties['question_title'] ?? 'سوال حذف شده';
+        $questionSlug = $properties['question_slug'] ?? null;
+        $questionId = $properties['question_id'] ?? null;
 
         return array_merge($base, [
             'type' => 'answer',
@@ -161,9 +153,10 @@ class ActivityService
     /**
      * Transform comment created activity
      */
-    private function transformCommentCreated(Activity $log, array $base, $subject, array $properties): ?array
+    private function transformCommentCreated(Activity $log, array $base, array $properties): ?array
     {
-        if (!$subject instanceof Comment) {
+        // Validate via subject_type column — do not hydrate the Comment model
+        if ($log->subject_type !== Comment::class) {
             return null;
         }
 
@@ -182,17 +175,13 @@ class ActivityService
     /**
      * Transform vote activity
      */
-    private function transformVote(Activity $log, array $base, $subject, array $properties): ?array
+    private function transformVote(Activity $log, array $base, array $properties): ?array
     {
         $voteType = $properties['vote_type'] ?? 'up';
         $questionTitle = $properties['question_title'] ?? 'محتوای حذف شده';
         $questionSlug = $properties['question_slug'] ?? null;
 
-        // Determine votable type
-        $votableType = $properties['votable_type'] ?? null;
-        if (!$votableType && $subject) {
-            $votableType = get_class($subject);
-        }
+        $votableType = $properties['votable_type'] ?? $log->subject_type;
 
         $typeLabel = match ($votableType) {
             Question::class => 'سوال',
@@ -215,7 +204,7 @@ class ActivityService
     /**
      * Transform publishing activity
      */
-    private function transformPublishing(Activity $log, array $base, $subject, array $properties, string $description): ?array
+    private function transformPublishing(Activity $log, array $base, array $properties, string $description): ?array
     {
         $questionTitle = $properties['question_title'] ?? 'محتوای حذف شده';
         $questionSlug = $properties['question_slug'] ?? null;
@@ -238,11 +227,10 @@ class ActivityService
     /**
      * Transform featuring activity
      */
-    private function transformFeaturing(Activity $log, array $base, $subject, array $properties, bool $isFeatured): ?array
+    private function transformFeaturing(Activity $log, array $base, array $properties, bool $isFeatured): ?array
     {
-        // Use properties if subject is deleted
-        $title = $properties['title'] ?? $subject?->title ?? 'سوال حذف شده';
-        $slug = $properties['slug'] ?? $subject?->slug ?? null;
+        $title = $properties['title'] ?? 'سوال حذف شده';
+        $slug = $properties['slug'] ?? null;
         $action = $isFeatured ? 'ویژه کرد' : 'ویژگی را از';
 
         return array_merge($base, [
@@ -257,18 +245,17 @@ class ActivityService
     /**
      * Transform marked correct activity
      */
-    private function transformMarkedCorrect(Activity $log, array $base, $subject, array $properties): ?array
+    private function transformMarkedCorrect(Activity $log, array $base, array $properties): ?array
     {
-        // Use properties if subject is deleted
-        $questionTitle = $properties['question_title'] ?? $subject?->question?->title ?? 'سوال حذف شده';
-        $questionSlug = $properties['question_slug'] ?? $subject?->question?->slug ?? null;
-        $isCorrect = $properties['is_correct'] ?? $subject?->is_correct ?? false;
+        $questionTitle = $properties['question_title'] ?? 'سوال حذف شده';
+        $questionSlug = $properties['question_slug'] ?? null;
+        $isCorrect = $properties['is_correct'] ?? false;
 
         return array_merge($base, [
             'type' => 'answer',
             'title' => $questionTitle,
             'is_correct' => $isCorrect,
-            'description' => "کاربر '{$base['user_name']}' پاسخ به سوال '{$questionTitle}' را " . ($isCorrect ? 'صحیح' : 'عادی') . ' علامت زد',
+            'description' => "کاربر '{$base['user_name']}' پاسخ به سوال '{$questionTitle}' را ".($isCorrect ? 'صحیح' : 'عادی').' علامت زد',
             'url' => $questionSlug ? "/questions/{$questionSlug}" : null,
         ]);
     }
@@ -276,20 +263,17 @@ class ActivityService
     /**
      * Get Persian month name with year from date
      *
-     * @param Carbon $date
-     * @return string
+     * @param  Carbon  $date
      */
     private function getPersianMonth($date): string
     {
         $carbon = $date instanceof Carbon ? $date : Carbon::parse($date);
+
         return jdate($carbon)->format('F Y');
     }
 
     /**
      * Check if there are more activities available beyond the given offset
-     *
-     * @param int $offset
-     * @return bool
      */
     public function hasMoreActivities(int $offset): bool
     {
@@ -300,10 +284,6 @@ class ActivityService
      * Get activity statistics for a period
      *
      * Returns counts of activities by type within the time period.
-     *
-     * @param int $months
-     * @param int $offset
-     * @return array
      */
     public function getActivityStats(int $months = 3, int $offset = 0): array
     {
@@ -327,8 +307,8 @@ class ActivityService
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'months' => $months,
-                'offset' => $offset
-            ]
+                'offset' => $offset,
+            ],
         ];
 
         return $stats;

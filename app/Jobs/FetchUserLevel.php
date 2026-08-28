@@ -17,41 +17,42 @@ class FetchUserLevel implements ShouldQueue
      */
     public function __construct(
         private User $user
-    )
-    {}
+    ) {}
 
     /**
      * Execute the job.
      */
     public function handle(): void
     {
-        $url = sprintf('https://api.rgb.irpsc.com/api/users/%s/level', $this->user->email);
+        $url = sprintf('https://api.metarang.com/api/user/%s/level', $this->user->code);
 
         $response = Http::get($url);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('Failed to fetch user level', [
-                'email' => $this->user->email,
+                'code' => $this->user->code,
                 'status' => $response->status(),
                 'response' => $response->body(),
             ]);
+
             return;
         }
 
         $data = $response->json();
-        $level = isset($data['level']['slug']) ? (int)$data['level']['slug'] : null;
-        $score = isset($data['score']) ? (int)$data['score'] : 0;
+        $level = isset($data['level']['slug']) ? (int) $data['level']['slug'] : null;
+        $score = isset($data['score']) ? (int) $data['score'] : 0;
 
         if ($level === null) {
             Log::warning('Level data missing in API response', [
                 'email' => $this->user->email,
                 'response' => $data,
             ]);
+
             return;
         }
 
         $previousLevel = $this->user->level;
-        $this->user->update(['level' => $level]);
+        $this->user->forceFill(['level' => $level])->save();
 
         if ($level > $previousLevel) {
             $this->user->increment('score', $score);

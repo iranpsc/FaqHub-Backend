@@ -1,0 +1,245 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PHP_VERSION: '8.4'
+
+jobs:
+  lint:
+    name: Code style
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          tools: composer:v2
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+
+      - name: Run Pint
+        run: vendor/bin/pint --test
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, intl, gd, exif, fileinfo
+          tools: composer:v2
+          coverage: pcov
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+
+      - name: Prepare application
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+
+      - name: Run tests
+        run: |
+          mkdir -p build/coverage
+          php artisan test --parallel --coverage --log-junit=build/junit.xml --coverage-clover=build/coverage/clover.xml
+
+      - name: Publish test statistics
+        if: always()
+        run: |
+          php <<'PHP'
+          <?php
+
+          $summaryPath = getenv('GITHUB_STEP_SUMMARY');
+
+          if ($summaryPath === false || $summaryPath === '') {
+              exit(0);
+          }
+
+          $lines = ['## Test Results', ''];
+
+          if (! file_exists('build/junit.xml')) {
+              $lines[] = 'Test report was not generated.';
+              file_put_contents($summaryPath, implode(PHP_EOL, $lines).PHP_EOL, FILE_APPEND);
+
+              exit(0);
+          }
+
+          $junit = simplexml_load_file('build/junit.xml');
+          $suite = $junit->testsuite[0] ?? $junit->testsuite;
+
+          $total = (int) $suite['tests'];
+          $failures = (int) $suite['failures'];
+          $errors = (int) $suite['errors'];
+          $skipped = (int) $suite['skipped'];
+          $ran = $total - $skipped;
+          $passed = $ran - $failures - $errors;
+          $duration = number_format((float) $suite['time'], 2);
+
+          $lines[] = '| Metric | Count |';
+          $lines[] = '| --- | ---: |';
+          $lines[] = sprintf('| Total | %d |', $total);
+          $lines[] = sprintf('| Ran | %d |', $ran);
+          $lines[] = sprintf('| Passed | %d |', $passed);
+          $lines[] = sprintf('| Failed | %d |', $failures);
+          $lines[] = sprintf('| Errors | %d |', $errors);
+          $lines[] = sprintf('| Skipped | %d |', $skipped);
+          $lines[] = '';
+          $lines[] = sprintf('**Duration:** %ss', $duration);
+
+          if (file_exists('build/coverage/clover.xml')) {
+              $clover = simplexml_load_file('build/coverage/clover.xml');
+              $metrics = $clover->project->metrics ?? null;
+
+              if ($metrics !== null) {
+                  $statements = (int) $metrics['statements'];
+                  $coveredStatements = (int) $metrics['coveredstatements'];
+                  $testCoverage = $statements > 0
+                      ? round(($coveredStatements / $statements) * 100, 2)
+                      : 0.0;
+
+                  $lines[] = '';
+                  $lines[] = '## Test Coverage';
+                  $lines[] = '';
+                  $lines[] = '| Metric | Value |';
+                  $lines[] = '| --- | ---: |';
+                  $lines[] = sprintf('| Test coverage | %.2f%% |', $testCoverage);
+                  $lines[] = sprintf('| Covered | %d / %d |', $coveredStatements, $statements);
+              }
+          }
+
+          file_put_contents($summaryPath, implode(PHP_EOL, $lines).PHP_EOL, FILE_APPEND);
+          PHP
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ github.run_id }}
+          path: |
+            build/junit.xml
+            build/coverage/clover.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  release:
+    name: Production artifact
+    needs: [lint, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, intl, gd, fileinfo
+          tools: composer:v2
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-
+
+      - name: Install production Composer dependencies
+        run: composer install --prefer-dist --no-dev --no-interaction --no-progress --optimize-autoloader
+
+      - name: Prepare release package
+        run: |
+          mkdir -p release
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='tests' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='storage/logs/*' \
+            --exclude='storage/framework/cache/*' \
+            --exclude='storage/framework/sessions/*' \
+            --exclude='storage/framework/views/*' \
+            ./ release/
+          mkdir -p \
+            release/storage/logs \
+            release/storage/framework/cache \
+            release/storage/framework/sessions \
+            release/storage/framework/views
+          touch \
+            release/storage/logs/.gitignore \
+            release/storage/framework/cache/.gitignore \
+            release/storage/framework/sessions/.gitignore \
+            release/storage/framework/views/.gitignore
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: faq-release-${{ github.sha }}
+          path: release
+          retention-days: 14
+          if-no-files-found: error

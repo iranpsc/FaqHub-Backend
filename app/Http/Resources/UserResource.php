@@ -29,7 +29,7 @@ class UserResource extends JsonResource
 
     private function handleVisibility(Request $request, $value)
     {
-        if(!$request->user()) {
+        if (! $request->user()) {
             return false;
         }
 

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Answer;
 use App\Models\Question;
 use App\Models\User;
 use App\Services\ActivityService;
@@ -15,51 +14,65 @@ class DashboardController extends Controller
 {
     /**
      * Get dashboard statistics
-     *
-     * @return JsonResponse
+     * Optimized: Uses a single query with subqueries instead of 4 separate queries
      */
     public function stats(): JsonResponse
     {
         try {
-            $stats = [
-                'totalQuestions' => Question::published()->count(),
-                'totalAnswers' => Answer::published()->count(),
-                'totalUsers' => User::count(),
-                'solvedQuestions' => Question::whereHas('answers', function ($query) {
-                    $query->where('is_correct', true);
-                })->count()
-            ];
+            // Single query with all counts as subqueries for better performance
+            $stats = DB::selectOne('
+                SELECT
+                    (SELECT COUNT(*) FROM questions WHERE published = 1 AND published_at IS NOT NULL) as totalQuestions,
+                    (SELECT COUNT(*) FROM answers WHERE published = 1) as totalAnswers,
+                    (SELECT COUNT(*) FROM users) as totalUsers,
+                    (SELECT COUNT(DISTINCT q.id) FROM questions q
+                     INNER JOIN answers a ON q.id = a.question_id
+                     WHERE a.is_correct = 1) as solvedQuestions
+            ');
 
             return response()->json([
                 'success' => true,
-                'data' => $stats,
-                'message' => 'آمار با موفقیت دریافت شد'
+                'data' => [
+                    'totalQuestions' => (int) $stats->totalQuestions,
+                    'totalAnswers' => (int) $stats->totalAnswers,
+                    'totalUsers' => (int) $stats->totalUsers,
+                    'solvedQuestions' => (int) $stats->solvedQuestions,
+                ],
+                'message' => 'آمار با موفقیت دریافت شد',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت آمار',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Get recommended questions (random selection)
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * Optimized: Uses efficient random selection with indexed columns
      */
     public function recommendedQuestions(Request $request): JsonResponse
     {
         try {
-            $limit = $request->get('limit', 15);
+            $validated = $request->validate([
+                'limit' => 'nullable|integer|min:1|max:50',
+            ]);
+            $limit = $validated['limit'] ?? 15;
 
-            $questions = Question::with(['user', 'tags', 'category'])
-                ->withCount(['answers', 'votes', 'comments'])
-                ->where('published', true)
+            // Get random IDs first (more efficient than inRandomOrder on full table)
+            // Use a subquery with RAND() on a limited set
+            $randomIds = Question::where('published', true)
+                ->select('id')
                 ->inRandomOrder()
                 ->limit($limit)
+                ->pluck('id');
+
+            // Then fetch the full data for those IDs
+            $questions = Question::with(['user:id,name', 'tags:id,name', 'category:id,name'])
+                ->withCount(['answers', 'votes'])
+                ->whereIn('id', $randomIds)
                 ->get()
                 ->map(function ($question) {
                     return [
@@ -78,55 +91,56 @@ class DashboardController extends Controller
                             'id' => $question->category->id,
                             'name' => $question->category->name,
                         ] : null,
-                        'tags' => $question->tags->map(function ($tag) {
-                            return [
-                                'id' => $tag->id,
-                                'name' => $tag->name,
-                            ];
-                        })
+                        'tags' => $question->tags->map(fn ($tag) => [
+                            'id' => $tag->id,
+                            'name' => $tag->name,
+                        ]),
                     ];
                 });
 
             return response()->json([
                 'success' => true,
                 'data' => $questions,
-                'message' => 'سوالات پیشنهادی با موفقیت دریافت شد'
+                'message' => 'سوالات پیشنهادی با موفقیت دریافت شد',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت سوالات پیشنهادی',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Get popular questions based on views and period
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * Optimized: Uses selective eager loading and efficient sorting
      */
     public function popularQuestions(Request $request): JsonResponse
     {
         try {
-            $limit = $request->get('limit', 15);
-            $period = $request->get('period', 'all'); // week, month, year, all
+            $validated = $request->validate([
+                'limit' => 'nullable|integer|min:1|max:50',
+                'period' => 'nullable|in:week,month,year,all',
+            ]);
+            $limit = $validated['limit'] ?? 15;
+            $period = $validated['period'] ?? 'all'; // week, month, year, all
 
-            $query = Question::with(['user', 'tags', 'category'])
-                ->withCount(['answers', 'votes', 'comments'])
+            $query = Question::select('questions.*')
+                ->with(['user:id,name', 'tags:id,name', 'category:id,name'])
+                ->withCount(['answers', 'votes'])
                 ->where('published', true);
 
             // Apply date filter based on period
             switch ($period) {
                 case 'week':
-                    $query->where('created_at', '>=', now()->subWeek());
+                    $query->where('questions.created_at', '>=', now()->subWeek());
                     break;
                 case 'month':
-                    $query->where('created_at', '>=', now()->subMonth());
+                    $query->where('questions.created_at', '>=', now()->subMonth());
                     break;
                 case 'year':
-                    $query->where('created_at', '>=', now()->subYear());
+                    $query->where('questions.created_at', '>=', now()->subYear());
                     break;
                 case 'all':
                 default:
@@ -135,9 +149,8 @@ class DashboardController extends Controller
             }
 
             $questions = $query
-                ->orderByDesc(DB::raw('COALESCE(views, 0)')) // Order by views (handle null values)
+                ->orderByDesc('views') // Primary sort by views (indexed)
                 ->orderByDesc('votes_count') // Secondary sort by votes
-                ->orderByDesc('answers_count') // Tertiary sort by answers
                 ->limit($limit)
                 ->get()
                 ->map(function ($question) {
@@ -157,69 +170,89 @@ class DashboardController extends Controller
                             'id' => $question->category->id,
                             'name' => $question->category->name,
                         ] : null,
-                        'tags' => $question->tags->map(function ($tag) {
-                            return [
-                                'id' => $tag->id,
-                                'name' => $tag->name,
-                            ];
-                        })
+                        'tags' => $question->tags->map(fn ($tag) => [
+                            'id' => $tag->id,
+                            'name' => $tag->name,
+                        ]),
                     ];
                 });
 
             return response()->json([
                 'success' => true,
                 'data' => $questions,
-                'message' => 'سوالات محبوب با موفقیت دریافت شد'
+                'message' => 'سوالات محبوب با موفقیت دریافت شد',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت سوالات محبوب',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Get most active users based on score and recent activity
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * Optimized: Uses subqueries instead of withCount for better performance
      */
     public function activeUsers(Request $request): JsonResponse
     {
         try {
-            $limit = $request->get('limit', 5);
+            $validated = $request->validate([
+                'limit' => 'nullable|integer|min:1|max:20',
+            ]);
+            $limit = $validated['limit'] ?? 5;
 
-            $users = User::withCount(['questions', 'answers', 'comments'])
+            // Use subqueries for counts - more efficient than withCount for ordering
+            $users = User::select([
+                'users.id',
+                'users.name',
+                'users.username',
+                'users.image',
+                'users.score',
+            ])
+                ->selectSub(
+                    DB::table('questions')->selectRaw('COUNT(*)')
+                        ->whereColumn('questions.user_id', 'users.id'),
+                    'questions_count'
+                )
+                ->selectSub(
+                    DB::table('answers')->selectRaw('COUNT(*)')
+                        ->whereColumn('answers.user_id', 'users.id'),
+                    'answers_count'
+                )
+                ->selectSub(
+                    DB::table('comments')->selectRaw('COUNT(*)')
+                        ->whereColumn('comments.user_id', 'users.id'),
+                    'comments_count'
+                )
                 ->orderByDesc('score')
-                ->orderByDesc('questions_count')
-                ->orderByDesc('answers_count')
                 ->limit($limit)
                 ->get()
                 ->map(function ($user) {
                     return [
                         'id' => $user->id,
                         'name' => $user->name,
+                        'username' => $user->username,
                         'image' => $user->image,
                         'score' => $user->score ?? 0,
-                        'questions_count' => $user->questions_count,
-                        'answers_count' => $user->answers_count,
-                        'comments_count' => $user->comments_count,
-                        'total_activity' => $user->questions_count + $user->answers_count + $user->comments_count,
+                        'questions_count' => (int) $user->questions_count,
+                        'answers_count' => (int) $user->answers_count,
+                        'comments_count' => (int) $user->comments_count,
+                        'total_activity' => (int) $user->questions_count + (int) $user->answers_count + (int) $user->comments_count,
                     ];
                 });
 
             return response()->json([
                 'success' => true,
                 'data' => $users,
-                'message' => 'کاربران فعال با موفقیت دریافت شد'
+                'message' => 'کاربران فعال با موفقیت دریافت شد',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت کاربران فعال',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -230,17 +263,18 @@ class DashboardController extends Controller
      * Query Parameters:
      * - limit (int): Number of activities to return (default: 30)
      * - offset (int): Number of activities to skip (default: 0)
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function activity(Request $request): JsonResponse
     {
         try {
-            $limit = (int) $request->get('limit', 30);
-            $offset = (int) $request->get('offset', 0);
+            $validated = $request->validate([
+                'limit' => 'nullable|integer|min:1|max:100',
+                'offset' => 'nullable|integer|min:0|max:5000',
+            ]);
+            $limit = $validated['limit'] ?? 30;
+            $offset = $validated['offset'] ?? 0;
 
-            $activityService = new ActivityService();
+            $activityService = new ActivityService;
             $result = $activityService->getActivities($limit, $offset);
 
             return response()->json([
@@ -248,13 +282,13 @@ class DashboardController extends Controller
                 'data' => $result['activities'],
                 'grouped_data' => $result['grouped_activities'],
                 'pagination' => $result['pagination'],
-                'message' => 'فعالیت‌ها با موفقیت دریافت شد'
+                'message' => 'فعالیت‌ها با موفقیت دریافت شد',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در دریافت فعالیت‌ها',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
