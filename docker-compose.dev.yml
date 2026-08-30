@@ -9,6 +9,8 @@
 
 name: faqhub-dev
 
+x-docker-registry: &docker-registry docker.arvancloud.ir
+
 x-app-common: &app-common
   image: faqhub-app-dev:${IMAGE_TAG:-latest}
   build:
@@ -63,7 +65,7 @@ x-app-common: &app-common
 
 services:
   nginx:
-    image: nginx:1.27-alpine
+    image: ${DOCKER_REGISTRY:-docker.arvancloud.ir}/nginx:1.27-alpine
     container_name: faqhub-dev-nginx
     restart: unless-stopped
     ports:
@@ -142,10 +144,10 @@ services:
         condition: service_healthy
 
   vite:
-    image: node:22-alpine
+    image: ${DOCKER_REGISTRY:-docker.arvancloud.ir}/node:22-alpine
     container_name: faqhub-dev-vite
     working_dir: /var/www/html
-    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    command: sh -c "npm config set registry https://package-mirror.liara.ir/repository/npm/ && npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
     ports:
       - "${VITE_PORT:-5173}:5173"
     volumes:
@@ -158,7 +160,7 @@ services:
     restart: unless-stopped
 
   mysql:
-    image: mysql:8.4
+    image: ${DOCKER_REGISTRY:-docker.arvancloud.ir}/library/mysql:8.4
     container_name: faqhub-dev-mysql
     restart: unless-stopped
     command:
@@ -183,7 +185,7 @@ services:
       start_period: 60s
 
   redis:
-    image: redis:7-alpine
+    image: ${DOCKER_REGISTRY:-docker.arvancloud.ir}/library/redis:7-alpine
     container_name: faqhub-dev-redis
     restart: unless-stopped
     ports:
@@ -199,7 +201,7 @@ services:
       retries: 10
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: ${DOCKER_REGISTRY:-docker.arvancloud.ir}/axllent/mailpit:latest
     container_name: faqhub-dev-mailpit
     restart: unless-stopped
     ports:
