@@ -25,7 +25,7 @@ Artisan::command('sentry:send-test-error', function () {
 
     $this->info('Sending test error to Sentry...');
 
-    $eventId = captureException(new \RuntimeException('Test error sent from artisan sentry:send-test-error command.'));
+    $eventId = captureException(new RuntimeException('Test error sent from artisan sentry:send-test-error command.'));
 
     Integration::flushEvents();
 
