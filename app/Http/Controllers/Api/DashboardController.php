@@ -234,7 +234,7 @@ class DashboardController extends Controller
                         'id' => $user->id,
                         'name' => $user->name,
                         'username' => $user->username,
-                        'image' => $user->image,
+                        'image' => $user->image_url,
                         'score' => $user->score ?? 0,
                         'questions_count' => (int) $user->questions_count,
                         'answers_count' => (int) $user->answers_count,
