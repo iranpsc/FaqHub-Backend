@@ -21,7 +21,9 @@ This document covers deploying FaqHub Backend with **Dokploy (production)** and 
 | `vite` | Dev only — frontend HMR |
 | `mailpit` | Dev only — local SMTP/UI |
 
-Static uploads are bind-mounted from the host into the container at `/opt/faqhub`.
+Static uploads are bind-mounted from the host. Production mounts `storage` and `sitemaps` subdirectories; the dev stack mounts the host path at `/opt/faqhub`.
+
+Nginx configs for the dev stack live in `docker/nginx/` (`nginx.conf`, `default.conf`).
 
 ---
 
@@ -38,15 +40,20 @@ Static uploads are bind-mounted from the host into the container at `/opt/faqhub
 
 ### 1.1 Prepare the host static directory
 
-On the Dokploy server, create the uploads directory (once):
+On the Dokploy server, create the uploads directories (once):
 
 ```bash
-sudo mkdir -p /opt/faqhub/avatars
+sudo mkdir -p /opt/faqhub/storage /opt/faqhub/sitemaps
 sudo chown -R 1000:1000 /opt/faqhub
 sudo chmod -R 775 /opt/faqhub
 ```
 
-This path is bind-mounted into every app-related container as `/opt/faqhub`.
+Production compose bind-mounts:
+
+| Host path | Container path |
+|---|---|
+| `${FAQHUB_STATIC_PATH}/storage` | `/var/www/html/storage/app/public` |
+| `${FAQHUB_STATIC_PATH}/sitemaps` | `/var/www/html/public/sitemaps` |
 
 ### 1.2 Create the Dokploy application
 
@@ -149,7 +156,15 @@ Equivalent CLI on the server:
 ```bash
 cp .env.docker.example .env   # then edit secrets
 # ensure FAQHUB_STATIC_PATH=/opt/faqhub
+export APP_ENV=production APP_DEBUG=false CACHE_CONFIG=true
 docker compose pull           # if using prebuilt images
+docker compose up -d --build
+```
+
+On Windows PowerShell for a local production smoke test:
+
+```powershell
+$env:APP_ENV='production'; $env:APP_DEBUG='false'; $env:CACHE_CONFIG='true'
 docker compose up -d --build
 ```
 
@@ -164,19 +179,36 @@ On first boot, the `app` entrypoint:
 
 ```bash
 docker compose ps
-docker compose logs -f app queue reverb
+docker compose logs -f app queue scheduler reverb
 
 # Health endpoint (Laravel)
 curl -fsS https://api.faqhub.ir/up
 
 # From the host, if ports are published locally
 curl -fsS http://127.0.0.1:8000/up
+
+# Queue and scheduler
+docker compose exec app php artisan queue:monitor redis:default
+docker compose exec app php artisan schedule:list
+docker compose logs queue --tail 20
+docker compose logs scheduler --tail 20
 ```
+
+Expected healthy state:
+
+| Service | Check |
+|---|---|
+| `app` | `docker compose ps` shows `(healthy)`; `/up` returns HTTP 200 |
+| `mysql` / `redis` | `(healthy)` |
+| `reverb` | `(healthy)`; logs show `Starting server on 0.0.0.0:8080` |
+| `queue` | Logs show `starting queue worker...` |
+| `scheduler` | Logs show `starting scheduler loop...` |
 
 Check uploads mount:
 
 ```bash
-docker compose exec app ls -la /opt/faqhub
+docker compose exec app ls -la storage/app/public
+docker compose exec app ls -la public/sitemaps
 docker compose exec app php artisan tinker --execute="echo storage_path('app/public');"
 ```
 
@@ -223,7 +255,9 @@ docker compose down -v
 - [ ] Firewall: do not expose MySQL/Redis to the public internet
 - [ ] `/up` returns HTTP 200
 - [ ] Queue worker processes jobs
-- [ ] File uploads land in `/opt/faqhub`
+- [ ] File uploads land under `${FAQHUB_STATIC_PATH}/storage`
+- [ ] `queue` and `scheduler` containers are running (check logs)
+- [ ] `reverb` container is healthy
 
 ---
 
@@ -273,13 +307,15 @@ Create the local static directory:
 
 ```bash
 # Linux / macOS
-mkdir -p data/faqhub/avatars
+mkdir -p data/faqhub/avatars data/faqhub/storage data/faqhub/sitemaps
 
 # Windows (PowerShell)
-New-Item -ItemType Directory -Force -Path data\faqhub\avatars
+New-Item -ItemType Directory -Force -Path data\faqhub\avatars, data\faqhub\storage, data\faqhub\sitemaps
 ```
 
 > On Windows, prefer `FAQHUB_STATIC_PATH=./data/faqhub`. On Linux, you may use `/opt/faqhub` if you create it on the host.
+>
+> Set `APP_URL=http://localhost:8080` in `.env` for local Docker dev (nginx listens on port 8080).
 
 ### 2.2 Build and run
 
@@ -287,7 +323,9 @@ New-Item -ItemType Directory -Force -Path data\faqhub\avatars
 docker compose -f docker-compose.dev.yml up -d --build
 ```
 
-First start may take longer while Composer deps install into the anonymous `vendor` volume.
+First start may take longer while the image builds and migrations run.
+
+The dev image ships with production Composer dependencies (`--no-dev`). If you previously ran `composer install` on the host, delete stale bootstrap cache files **before** the first Docker start (see [§5 Troubleshooting](#5-troubleshooting)).
 
 Follow logs:
 
@@ -316,9 +354,18 @@ docker compose -f docker-compose.dev.yml logs -f
 docker compose -f docker-compose.dev.yml ps
 
 curl -fsS http://localhost:8080/up
+curl -fsS http://localhost:8080/healthz   # nginx-only probe (returns "ok")
 
 docker compose -f docker-compose.dev.yml exec app php artisan about
 docker compose -f docker-compose.dev.yml exec app php artisan migrate:status
+docker compose -f docker-compose.dev.yml exec app php artisan queue:monitor redis:default
+docker compose -f docker-compose.dev.yml logs queue scheduler reverb --tail 20
+```
+
+On Windows PowerShell, use `curl.exe` instead of `curl` (which aliases to `Invoke-WebRequest`):
+
+```powershell
+curl.exe -fsS http://localhost:8080/up
 ```
 
 ### 2.5 Day-to-day development commands
@@ -363,7 +410,7 @@ Multi-stage `Dockerfile` targets:
 | Target | Used by | Description |
 |---|---|---|
 | `app` | Production compose | Optimized PHP runtime + built assets + Composer `--no-dev` |
-| `nginx` | (image stage only) | Not used by production compose anymore |
+| `nginx` | Dev compose (via `nginx:1.27-alpine` + `docker/nginx/*.conf`) | Reverse proxy to PHP-FPM; not a separate production service |
 | `app-dev` | Dev compose | Adds Composer, Node, Xdebug |
 
 Manual build examples:
@@ -378,16 +425,15 @@ docker build --target app-dev -t faqhub-app-dev:latest .
 
 ---
 
-## 4. Static files (`/opt/faqhub`)
-
-Laravel’s public disk is wired to `/opt/faqhub` inside containers (`public/storage` → `/opt/faqhub`).
+## 4. Static files
 
 | Environment | Host path | Container path |
 |---|---|---|
-| Production / Dokploy | `/opt/faqhub` | `/opt/faqhub` |
-| Local (recommended) | `./data/faqhub` | `/opt/faqhub` |
+| Production / Dokploy | `${FAQHUB_STATIC_PATH}/storage` | `/var/www/html/storage/app/public` |
+| Production / Dokploy | `${FAQHUB_STATIC_PATH}/sitemaps` | `/var/www/html/public/sitemaps` |
+| Local dev (recommended) | `./data/faqhub` | `/opt/faqhub` (extra mount; uploads also use bind-mounted project `storage/`) |
 
-Uploads (e.g. avatars) persist on the host across container rebuilds.
+The entrypoint runs `php artisan storage:link`, which creates `public/storage` → `storage/app/public`. Uploads (e.g. avatars) persist on the host across container rebuilds.
 
 ---
 
@@ -396,12 +442,14 @@ Uploads (e.g. avatars) persist on the host across container rebuilds.
 | Symptom | What to check |
 |---|---|
 | `app` unhealthy / won’t start | `docker compose logs app`; MySQL/Redis healthy?; valid `APP_KEY` |
+| `Class "Laravel\Pail\PailServiceProvider" not found` (dev) | Host `bootstrap/cache/packages.php` lists dev packages but the Docker `vendor` volume has `--no-dev` deps. Delete stale cache, then restart: `rm -f bootstrap/cache/packages.php bootstrap/cache/services.php` (PowerShell: `Remove-Item bootstrap/cache/packages.php, bootstrap/cache/services.php -ErrorAction SilentlyContinue`), then `docker compose -f docker-compose.dev.yml restart app queue scheduler reverb`. To install full dev deps inside the container: `docker compose -f docker-compose.dev.yml run --rm --no-deps --entrypoint sh app -c "composer install"` |
 | MySQL restart loop | Remove invalid MySQL 8.4 flags; recreate volume with `down -v` only if disposable |
 | Port already allocated | Change `APP_PORT` / `NGINX_PORT` / `REVERB_PUBLISH_PORT` in `.env` |
-| Uploads missing after deploy | Host bind path exists? `FAQHUB_STATIC_PATH` correct? permissions `1000:1000`? |
+| Uploads missing after deploy | Host bind paths exist? `FAQHUB_STATIC_PATH` correct? permissions `1000:1000`? |
 | Queue not processing | `QUEUE_CONNECTION=redis`, Redis up, `docker compose logs queue` |
 | Reverb clients fail | `REVERB_HOST` / scheme / public port match browser URL; firewall/proxy WS support |
-| Dev vendor missing | Wait for first `composer install`, or `docker compose -f docker-compose.dev.yml exec app composer install` |
+| Dev vendor missing | Wait for first start, or `docker compose -f docker-compose.dev.yml run --rm --no-deps --entrypoint sh app -c "composer install"` |
+| Nginx fails to start (dev) | Ensure `docker/nginx/nginx.conf` and `docker/nginx/default.conf` exist in the repo |
 
 ---
 

@@ -143,14 +143,15 @@ class DashboardActiveUsersTest extends TestCase
             ->assertJsonPath('data.0.score', 0);
     }
 
-    public function test_active_users_returns_image_path_not_url(): void
+    public function test_active_users_returns_image_url_not_path(): void
     {
         $user = User::factory()->withImage('avatars/demo.jpg')->create(['score' => 1]);
+        $expectedUrl = url('storage/avatars/demo.jpg');
 
         $this->getJson('/api/dashboard/active-users')
             ->assertOk()
             ->assertJsonPath('data.0.id', $user->id)
-            ->assertJsonPath('data.0.image', 'avatars/demo.jpg');
+            ->assertJsonPath('data.0.image', $expectedUrl);
     }
 
     public function test_active_users_empty_database_returns_empty_data(): void

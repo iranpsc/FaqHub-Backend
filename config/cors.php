@@ -22,7 +22,8 @@ return [
 
     // Allowed origins - strict in production, permissive in development
     'allowed_origins' => env('APP_ENV', 'production') === 'production'
-        ? ['https://faqhub.ir']
+        ? [env('FRONTEND_APP_URL', 'https://faqhub.ir')]
+
         : [],
 
     'allowed_origins_patterns' => [],

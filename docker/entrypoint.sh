@@ -10,17 +10,11 @@ mkdir -p \
     /var/www/html/storage/logs \
     /var/www/html/storage/app/private \
     /var/www/html/bootstrap/cache \
-    /opt/faqhub
+    /var/www/html/public/sitemaps
 
-# Wire Laravel public disk + /storage URL to the host bind mount
-if [ ! -L /var/www/html/storage/app/public ]; then
-    rm -rf /var/www/html/storage/app/public
-    ln -sfn /opt/faqhub /var/www/html/storage/app/public
-fi
-
-if [ ! -L /var/www/html/public/storage ]; then
-    rm -rf /var/www/html/public/storage
-    ln -sfn /opt/faqhub /var/www/html/public/storage
+# App writes to public/sitemap; host data is bind-mounted at public/sitemaps
+if [ ! -e /var/www/html/public/sitemap ]; then
+    ln -sfn sitemaps /var/www/html/public/sitemap
 fi
 
 wait_for_host() {
@@ -82,7 +76,12 @@ fi
 chown -R faqhub:faqhub \
     /var/www/html/storage \
     /var/www/html/bootstrap/cache \
-    /opt/faqhub 2>/dev/null || true
+    /var/www/html/public/sitemaps 2>/dev/null || true
+
+if [ "${RUN_STORAGE_LINK:-false}" = "true" ] && [ -f /var/www/html/artisan ]; then
+    echo "[entrypoint] creating storage symlink (public/storage -> storage/app/public)..."
+    php artisan storage:link --force --no-interaction
+fi
 
 if [ "${RUN_MIGRATIONS:-false}" = "true" ] && [ -f /var/www/html/artisan ]; then
     echo "[entrypoint] running migrations..."

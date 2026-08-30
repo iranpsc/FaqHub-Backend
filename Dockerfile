@@ -1,11 +1,25 @@
-# syntax=docker/dockerfile:1.7
+# Iranian mirror defaults (override at build time if needed)
+ARG DOCKER_REGISTRY=docker.arvancloud.ir
+ARG ALPINE_MIRROR=https://mirror.arvancloud.ir/alpine
+ARG NPM_REGISTRY=https://package-mirror.liara.ir/repository/npm/
+ARG COMPOSER_MIRROR=https://package-mirror.liara.ir/repository/composer/
 
 # -----------------------------------------------------------------------------
 # Stage 1: Frontend assets (Vite)
 # -----------------------------------------------------------------------------
-FROM node:22-alpine AS frontend
+FROM ${DOCKER_REGISTRY}/node:22-alpine AS frontend
+
+ARG ALPINE_MIRROR
+ARG NPM_REGISTRY
 
 WORKDIR /app
+
+COPY docker/mirrors/configure-alpine-mirror.sh /tmp/configure-alpine-mirror.sh
+RUN chmod +x /tmp/configure-alpine-mirror.sh \
+    && /tmp/configure-alpine-mirror.sh \
+    && rm /tmp/configure-alpine-mirror.sh
+
+RUN npm config set registry "${NPM_REGISTRY}"
 
 COPY package.json package-lock.json ./
 RUN npm ci \
@@ -20,9 +34,18 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 # Stage 2: PHP Composer dependencies
 # -----------------------------------------------------------------------------
-FROM composer:2 AS vendor
+FROM ${DOCKER_REGISTRY}/composer:2 AS composer-bin
+
+FROM composer-bin AS vendor
+
+ARG COMPOSER_MIRROR
 
 WORKDIR /app
+
+COPY docker/mirrors/configure-composer-mirror.sh /tmp/configure-composer-mirror.sh
+RUN chmod +x /tmp/configure-composer-mirror.sh \
+    && /tmp/configure-composer-mirror.sh \
+    && rm /tmp/configure-composer-mirror.sh
 
 COPY composer.json composer.lock ./
 
@@ -43,7 +66,9 @@ RUN composer dump-autoload --optimize --classmap-authoritative --no-dev --no-int
 # -----------------------------------------------------------------------------
 # Stage 3: Production PHP-FPM runtime
 # -----------------------------------------------------------------------------
-FROM php:8.4-fpm-alpine AS app
+FROM ${DOCKER_REGISTRY}/php:8.4-fpm-alpine AS app
+
+ARG ALPINE_MIRROR
 
 LABEL org.opencontainers.image.title="FaqHub Backend" \
       org.opencontainers.image.description="Laravel API for FaqHub"
@@ -55,6 +80,12 @@ ENV APP_ENV=production \
     PHP_MEMORY_LIMIT=256M \
     PHP_UPLOAD_MAX_FILESIZE=20M \
     PHP_POST_MAX_SIZE=20M
+
+COPY docker/mirrors/configure-alpine-mirror.sh /tmp/configure-alpine-mirror.sh
+COPY docker/mirrors/install-pecl-extension.sh /tmp/install-pecl-extension.sh
+RUN chmod +x /tmp/configure-alpine-mirror.sh \
+    && /tmp/configure-alpine-mirror.sh \
+    && rm /tmp/configure-alpine-mirror.sh
 
 RUN apk add --no-cache \
         curl \
@@ -88,8 +119,9 @@ RUN apk add --no-cache \
         pcntl \
         pdo_mysql \
         zip \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
+    && chmod +x /tmp/install-pecl-extension.sh \
+    && /tmp/install-pecl-extension.sh redis 6.2.0 \
+    && rm /tmp/install-pecl-extension.sh \
     && apk del --no-network \
         $PHPIZE_DEPS \
         icu-dev \
@@ -105,7 +137,6 @@ RUN apk add --no-cache \
 RUN addgroup -g 1000 -S faqhub \
     && adduser -u 1000 -S faqhub -G faqhub \
     && mkdir -p \
-        /opt/faqhub \
         /var/www/html/storage/framework/cache/data \
         /var/www/html/storage/framework/sessions \
         /var/www/html/storage/framework/views \
@@ -113,8 +144,9 @@ RUN addgroup -g 1000 -S faqhub \
         /var/www/html/storage/logs \
         /var/www/html/storage/app/private \
         /var/www/html/storage/app/public \
+        /var/www/html/public/sitemaps \
         /var/www/html/bootstrap/cache \
-    && chown -R faqhub:faqhub /var/www/html /opt/faqhub
+    && chown -R faqhub:faqhub /var/www/html
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-faqhub.ini
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/10-opcache.ini
@@ -127,11 +159,7 @@ WORKDIR /var/www/html
 
 COPY --from=vendor --chown=faqhub:faqhub /app /var/www/html
 
-# public/storage points at the host bind-mounted static directory
-RUN chown -R faqhub:faqhub storage bootstrap/cache \
-    && rm -f public/storage \
-    && ln -sfn /opt/faqhub public/storage \
-    && chown -h faqhub:faqhub public/storage
+RUN chown -R faqhub:faqhub storage bootstrap/cache public/sitemaps
 
 # php-fpm master runs as root; pool workers run as faqhub (see www.conf)
 EXPOSE 9000
@@ -145,16 +173,21 @@ CMD ["php-fpm", "-F"]
 # -----------------------------------------------------------------------------
 # Stage 4: Nginx (serves static assets + proxies PHP)
 # -----------------------------------------------------------------------------
-FROM nginx:1.27-alpine AS nginx
+FROM ${DOCKER_REGISTRY}/nginx:1.27-alpine AS nginx
+
+ARG ALPINE_MIRROR
+
+COPY docker/mirrors/configure-alpine-mirror.sh /tmp/configure-alpine-mirror.sh
+RUN chmod +x /tmp/configure-alpine-mirror.sh \
+    && /tmp/configure-alpine-mirror.sh \
+    && rm /tmp/configure-alpine-mirror.sh
 
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=app /var/www/html/public /var/www/html/public
 
-RUN mkdir -p /opt/faqhub \
-    && rm -f /var/www/html/public/storage \
-    && ln -sfn /opt/faqhub /var/www/html/public/storage \
-    && chown -R nginx:nginx /var/www/html/public /opt/faqhub
+RUN mkdir -p /var/www/html/public/sitemaps \
+    && chown -R nginx:nginx /var/www/html/public
 
 EXPOSE 80
 
@@ -166,16 +199,31 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 # -----------------------------------------------------------------------------
 FROM app AS app-dev
 
+ARG ALPINE_MIRROR
+ARG DOCKER_REGISTRY
+
 ENV APP_ENV=local \
     APP_DEBUG=true \
     PHP_OPCACHE_ENABLE=0
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer-bin /usr/bin/composer /usr/bin/composer
+
+COPY docker/mirrors/configure-composer-mirror.sh /tmp/configure-composer-mirror.sh
+RUN chmod +x /tmp/configure-composer-mirror.sh \
+    && /tmp/configure-composer-mirror.sh \
+    && rm /tmp/configure-composer-mirror.sh
+
+COPY docker/mirrors/configure-alpine-mirror.sh /tmp/configure-alpine-mirror.sh
+COPY docker/mirrors/install-pecl-extension.sh /tmp/install-pecl-extension.sh
+RUN chmod +x /tmp/configure-alpine-mirror.sh \
+    && /tmp/configure-alpine-mirror.sh \
+    && rm /tmp/configure-alpine-mirror.sh
 
 RUN apk add --no-cache git unzip bash nodejs npm \
         $PHPIZE_DEPS linux-headers \
-    && pecl install xdebug \
-    && docker-php-ext-enable xdebug \
+    && chmod +x /tmp/install-pecl-extension.sh \
+    && /tmp/install-pecl-extension.sh xdebug 3.4.2 \
+    && rm /tmp/install-pecl-extension.sh \
     && apk del --no-network $PHPIZE_DEPS linux-headers \
     && rm -rf /tmp/pear /var/cache/apk/*
 
