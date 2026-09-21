@@ -105,10 +105,9 @@ REVERB_SCHEME=https
 
 FAQHUB_STATIC_PATH=/opt/faqhub
 
-APP_PORT=8000
-MYSQL_PORT=3306
-REDIS_PORT_PUBLISH=6379
-REVERB_PUBLISH_PORT=8080
+# Do NOT publish MySQL/Redis/App host ports on Dokploy — Traefik routes internally.
+# Optional Redis AUTH (also set in Laravel REDIS_PASSWORD):
+# REDIS_PASSWORD=use-a-strong-redis-password
 
 RUN_MIGRATIONS=true
 CACHE_CONFIG=true
@@ -126,26 +125,37 @@ Generate a real app key (on any machine with PHP, or temporarily in a container)
 ```bash
 php artisan key:generate --show
 # or
-docker run --rm faqhub-app:latest php -r "echo 'base64:'.base64_encode(random_bytes(32)), PHP_EOL;"
+docker run --rm faqhub-backend:latest php -r "echo 'base64:'.base64_encode(random_bytes(32)), PHP_EOL;"
 ```
 
 > **Important:** Use the **same** `APP_KEY` for `app`, `queue`, `scheduler`, and `reverb`. Do not leave the sample key from `.env.docker.example` in production.
 
 ### 1.4 Domains / Traefik (Dokploy)
 
-Point your public domain at the `app` service HTTP port:
+Production compose uses **`expose` only** (no host `ports:`). That prevents port clashes with other Dokploy apps on the same server. Traefik reaches containers on the Docker network.
 
 | Public service | Internal target | Notes |
 |---|---|---|
 | API / web | `app:8000` | Main Laravel HTTP entry |
 | WebSockets | `reverb:8080` | Configure WS/WSS domain or path |
+| MySQL / Redis | not published | Reachable only as `mysql` / `redis` inside this stack |
 
 Typical Dokploy setup:
 
 1. Add domain `api.faqhub.ir` → service `app`, port `8000`.
 2. Enable HTTPS (Let's Encrypt) in Dokploy.
 3. Optionally add a Reverb domain (or path) → service `reverb`, port `8080`, with WebSocket support enabled.
-4. Keep MySQL (`3306`) and Redis (`6379`) **unpublished publicly** in production if Dokploy allows restricting publish, or firewall them. The compose file exposes them for ops/debug; lock them down on the host firewall.
+4. Do **not** map host ports for MySQL or Redis. They stay on the private Compose network.
+
+**Multi-project isolation (already baked into `docker-compose.yml`):**
+
+| Concern | How this stack avoids clashes |
+|---|---|
+| Host ports | No `ports:` — only `expose` + Dokploy domains |
+| Container names | No fixed `container_name` — Compose/Dokploy prefixes them |
+| Networks / volumes | Prefixed by Compose project name |
+| Image tag | `faqhub-backend` (unique to this app) |
+| Static files | `${FAQHUB_STATIC_PATH}` default `/opt/faqhub` |
 
 ### 1.5 Deploy
 
@@ -181,11 +191,11 @@ On first boot, the `app` entrypoint:
 docker compose ps
 docker compose logs -f app queue scheduler reverb
 
-# Health endpoint (Laravel)
+# Health endpoint (Laravel) via public domain
 curl -fsS https://api.faqhub.ir/up
 
-# From the host, if ports are published locally
-curl -fsS http://127.0.0.1:8000/up
+# From inside the stack (no host port required)
+docker compose exec app php -r "echo file_get_contents('http://127.0.0.1:8000/up');"
 
 # Queue and scheduler
 docker compose exec app php artisan queue:monitor redis:default
@@ -214,12 +224,12 @@ docker compose exec app php artisan tinker --execute="echo storage_path('app/pub
 
 ### 1.7 Production ports reference
 
-| Service | Host env | Container port |
-|---|---|---|
-| `app` | `APP_PORT` (default `8000`) | `8000` |
-| `reverb` | `REVERB_PUBLISH_PORT` (default `8080`) | `8080` |
-| `mysql` | `MYSQL_PORT` (default `3306`) | `3306` |
-| `redis` | `REDIS_PORT_PUBLISH` (default `6379`) | `6379` |
+| Service | Published on host? | Container port | How clients reach it |
+|---|---|---|---|
+| `app` | No | `8000` | Dokploy domain → Traefik → `app:8000` |
+| `reverb` | No | `8080` | Dokploy WS domain → Traefik → `reverb:8080` |
+| `mysql` | No | `3306` | Only other services in this compose (`DB_HOST=mysql`) |
+| `redis` | No | `6379` | Only other services in this compose (`REDIS_HOST=redis`) |
 
 `queue` and `scheduler` do not expose ports.
 
@@ -252,7 +262,8 @@ docker compose down -v
 - [ ] `APP_ENV=production`, `APP_DEBUG=false`
 - [ ] `APP_URL` / `REVERB_*` match public HTTPS domains
 - [ ] OAuth redirect URLs allow your `APP_URL`
-- [ ] Firewall: do not expose MySQL/Redis to the public internet
+- [ ] No host port binds for MySQL/Redis/App (Dokploy domains only)
+- [ ] Domains point at `app:8000` and (optional) `reverb:8080`
 - [ ] `/up` returns HTTP 200
 - [ ] Queue worker processes jobs
 - [ ] File uploads land under `${FAQHUB_STATIC_PATH}/storage`
@@ -417,7 +428,7 @@ Manual build examples:
 
 ```bash
 # Production app image
-docker build --target app -t faqhub-app:latest .
+docker build --target app -t faqhub-backend:latest .
 
 # Development image
 docker build --target app-dev -t faqhub-app-dev:latest .
@@ -444,7 +455,7 @@ The entrypoint runs `php artisan storage:link`, which creates `public/storage` �
 | `app` unhealthy / won’t start | `docker compose logs app`; MySQL/Redis healthy?; valid `APP_KEY` |
 | `Class "Laravel\Pail\PailServiceProvider" not found` (dev) | Host `bootstrap/cache/packages.php` lists dev packages but the Docker `vendor` volume has `--no-dev` deps. Delete stale cache, then restart: `rm -f bootstrap/cache/packages.php bootstrap/cache/services.php` (PowerShell: `Remove-Item bootstrap/cache/packages.php, bootstrap/cache/services.php -ErrorAction SilentlyContinue`), then `docker compose -f docker-compose.dev.yml restart app queue scheduler reverb`. To install full dev deps inside the container: `docker compose -f docker-compose.dev.yml run --rm --no-deps --entrypoint sh app -c "composer install"` |
 | MySQL restart loop | Remove invalid MySQL 8.4 flags; recreate volume with `down -v` only if disposable |
-| Port already allocated | Change `APP_PORT` / `NGINX_PORT` / `REVERB_PUBLISH_PORT` in `.env` |
+| Port already allocated | Production compose publishes no host ports — use Dokploy domains. Dev: change `NGINX_PORT` / `REVERB_PUBLISH_PORT` in `.env`. |
 | Uploads missing after deploy | Host bind paths exist? `FAQHUB_STATIC_PATH` correct? permissions `1000:1000`? |
 | Queue not processing | `QUEUE_CONNECTION=redis`, Redis up, `docker compose logs queue` |
 | Reverb clients fail | `REVERB_HOST` / scheme / public port match browser URL; firewall/proxy WS support |

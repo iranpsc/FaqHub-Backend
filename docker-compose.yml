@@ -1,23 +1,13 @@
-# Production stack for FaqHub Backend (Dokploy / server)
+# Production stack for FaqHub Backend (Dokploy)
 #
-# Usage:
-#   docker compose up -d --build
-#   docker compose logs -f
-#
-# Host bind mounts (create on the server before first deploy):
+# Host bind mounts:
 #   ${FAQHUB_STATIC_PATH:-/opt/faqhub}/storage   -> storage/app/public
 #   ${FAQHUB_STATIC_PATH:-/opt/faqhub}/sitemaps  -> public/sitemaps
 #
-# Published ports:
-#   app        ${APP_PORT:-8000}              -> 8000
-#   reverb     ${REVERB_PUBLISH_PORT:-8080}   -> 8080
-#   mysql      ${MYSQL_PORT:-3306}            -> 3306
-#   redis      ${REDIS_PORT_PUBLISH:-6379}    -> 6379
-
-name: faqhub
+# Dokploy domains: app:8000 (API), reverb:8080 (WebSocket)
 
 x-app-common: &app-common
-  image: faqhub-app:${IMAGE_TAG:-latest}
+  image: faqhub-backend:${IMAGE_TAG:-latest}
   build:
     context: .
     dockerfile: Dockerfile
@@ -65,15 +55,14 @@ x-app-common: &app-common
 services:
   app:
     <<: *app-common
-    container_name: faqhub-app
     environment:
       <<: *app-env
       CONTAINER_ROLE: app
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       CACHE_CONFIG: ${CACHE_CONFIG:-true}
       RUN_STORAGE_LINK: ${RUN_STORAGE_LINK:-true}
-    ports:
-      - "${APP_PORT:-8000}:8000"
+    expose:
+      - "8000"
     command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
     healthcheck:
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 8000) ? 0 : 1);"]
@@ -84,7 +73,6 @@ services:
 
   queue:
     <<: *app-common
-    container_name: faqhub-queue
     environment:
       <<: *app-env
       CONTAINER_ROLE: queue
@@ -96,7 +84,6 @@ services:
 
   scheduler:
     <<: *app-common
-    container_name: faqhub-scheduler
     environment:
       <<: *app-env
       CONTAINER_ROLE: scheduler
@@ -108,15 +95,14 @@ services:
 
   reverb:
     <<: *app-common
-    container_name: faqhub-reverb
     environment:
       <<: *app-env
       CONTAINER_ROLE: reverb
       RUN_MIGRATIONS: "false"
       CACHE_CONFIG: "false"
       RUN_STORAGE_LINK: ${RUN_STORAGE_LINK:-true}
-    ports:
-      - "${REVERB_PUBLISH_PORT:-8080}:8080"
+    expose:
+      - "8080"
     healthcheck:
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 8080) ? 0 : 1);"]
       interval: 30s
@@ -125,8 +111,7 @@ services:
       start_period: 30s
 
   mysql:
-    image: ${DOCKER_REGISTRY:-docker.arvancloud.ir}/library/mysql:8.4
-    container_name: faqhub-mysql
+    image: mysql:8.4
     restart: unless-stopped
     command:
       - --character-set-server=utf8mb4
@@ -136,32 +121,45 @@ services:
       MYSQL_USER: ${DB_USERNAME:-faqhub}
       MYSQL_PASSWORD: ${DB_PASSWORD:-faqhub}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret}
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
+    expose:
+      - "3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
       - faqhub
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootsecret"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
       start_period: 60s
 
   redis:
-    image: ${DOCKER_REGISTRY:-docker.arvancloud.ir}/library/redis:7-alpine
-    container_name: faqhub-redis
+    image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
-    ports:
-      - "${REDIS_PORT_PUBLISH:-6379}:6379"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        if [ -n "$$REDIS_PASSWORD" ] && [ "$$REDIS_PASSWORD" != "null" ]; then
+          exec redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass "$$REDIS_PASSWORD"
+        else
+          exec redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+        fi
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    expose:
+      - "6379"
     volumes:
       - redis_data:/data
     networks:
       - faqhub
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        [
+          "CMD-SHELL",
+          'if [ -n "$$REDIS_PASSWORD" ] && [ "$$REDIS_PASSWORD" != "null" ]; then redis-cli -a "$$REDIS_PASSWORD" ping; else redis-cli ping; fi | grep -q PONG',
+        ]
       interval: 10s
       timeout: 3s
       retries: 10

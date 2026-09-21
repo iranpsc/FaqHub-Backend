@@ -1,7 +1,4 @@
 #!/bin/sh
-# Point Composer packagist to an Iranian mirror.
+# Kept for compatibility. Official Packagist (repo.packagist.org) is used as-is.
 set -eu
-
-MIRROR="${COMPOSER_MIRROR:-https://package-mirror.liara.ir/repository/composer/}"
-
-composer config --global repos.packagist composer "${MIRROR}"
+exit 0
