@@ -132,7 +132,15 @@ docker run --rm faqhub-backend:latest php -r "echo 'base64:'.base64_encode(rando
 
 ### 1.4 Domains / Traefik (Dokploy)
 
-Production compose uses **`expose` only** (no host `ports:`). That prevents port clashes with other Dokploy apps on the same server. Traefik reaches containers on the Docker network.
+Production compose uses **`expose` only** (no host `ports:`). That prevents port clashes with other Dokploy apps on the same server.
+
+`app` and `reverb` join the external `dokploy-network` (Traefik) and the private `faqhub` bridge (MySQL, Redis, workers). `traefik.docker.network` is set so Traefik always uses `dokploy-network` when a container has two networks. MySQL, Redis, `queue`, and `scheduler` are not attached to `dokploy-network`.
+
+Dokploy creates `dokploy-network` on install. A local production smoke test must create it first:
+
+```bash
+docker network inspect dokploy-network >/dev/null 2>&1 || docker network create dokploy-network
+```
 
 | Public service | Internal target | Notes |
 |---|---|---|
@@ -153,7 +161,7 @@ Typical Dokploy setup:
 |---|---|
 | Host ports | No `ports:` — only `expose` + Dokploy domains |
 | Container names | No fixed `container_name` — Compose/Dokploy prefixes them |
-| Networks / volumes | Prefixed by Compose project name |
+| Networks / volumes | Private `faqhub` network and volumes are prefixed by Compose project name. Public services also join the shared external `dokploy-network`. |
 | Image tag | `faqhub-backend` (unique to this app) |
 | Static files | `${FAQHUB_STATIC_PATH}` default `/opt/faqhub` |
 
@@ -456,6 +464,8 @@ The entrypoint runs `php artisan storage:link`, which creates `public/storage` �
 | `Class "Laravel\Pail\PailServiceProvider" not found` (dev) | Host `bootstrap/cache/packages.php` lists dev packages but the Docker `vendor` volume has `--no-dev` deps. Delete stale cache, then restart: `rm -f bootstrap/cache/packages.php bootstrap/cache/services.php` (PowerShell: `Remove-Item bootstrap/cache/packages.php, bootstrap/cache/services.php -ErrorAction SilentlyContinue`), then `docker compose -f docker-compose.dev.yml restart app queue scheduler reverb`. To install full dev deps inside the container: `docker compose -f docker-compose.dev.yml run --rm --no-deps --entrypoint sh app -c "composer install"` |
 | MySQL restart loop | Remove invalid MySQL 8.4 flags; recreate volume with `down -v` only if disposable |
 | Port already allocated | Production compose publishes no host ports — use Dokploy domains. Dev: change `NGINX_PORT` / `REVERB_PUBLISH_PORT` in `.env`. |
+| `network dokploy-network declared as external, but could not be found` | On a Dokploy server the network already exists. Locally: `docker network create dokploy-network`. |
+| Dokploy domain returns 504 | `app` / `reverb` must list `dokploy-network`, and `traefik.docker.network` must match that network name (`DOKPLOY_NETWORK`). |
 | Uploads missing after deploy | Host bind paths exist? `FAQHUB_STATIC_PATH` correct? permissions `1000:1000`? |
 | Queue not processing | `QUEUE_CONNECTION=redis`, Redis up, `docker compose logs queue` |
 | Reverb clients fail | `REVERB_HOST` / scheme / public port match browser URL; firewall/proxy WS support |

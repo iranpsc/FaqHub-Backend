@@ -4,7 +4,14 @@
 #   ${FAQHUB_STATIC_PATH:-/opt/faqhub}/storage   -> storage/app/public
 #   ${FAQHUB_STATIC_PATH:-/opt/faqhub}/sitemaps  -> public/sitemaps
 #
-# Dokploy domains: app:8000 (API), reverb:8080 (WebSocket)
+# Networks:
+#   faqhub           private bridge — app, workers, MySQL, Redis
+#   dokploy-network  external Dokploy/Traefik network (must already exist)
+#
+# Dokploy domains (UI) target app:8000 (API) and reverb:8080 (WebSocket).
+# Those two services are dual-homed. traefik.docker.network pins Traefik to
+# dokploy-network so it does not pick the private bridge and 504.
+# mysql, redis, queue, and scheduler stay on faqhub only.
 
 x-app-common: &app-common
   image: faqhub-backend:${IMAGE_TAG:-latest}
@@ -61,6 +68,11 @@ services:
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       CACHE_CONFIG: ${CACHE_CONFIG:-true}
       RUN_STORAGE_LINK: ${RUN_STORAGE_LINK:-true}
+    networks:
+      - faqhub
+      - dokploy-network
+    labels:
+      - traefik.docker.network=${DOKPLOY_NETWORK:-dokploy-network}
     expose:
       - "8000"
     command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
@@ -101,6 +113,11 @@ services:
       RUN_MIGRATIONS: "false"
       CACHE_CONFIG: "false"
       RUN_STORAGE_LINK: ${RUN_STORAGE_LINK:-true}
+    networks:
+      - faqhub
+      - dokploy-network
+    labels:
+      - traefik.docker.network=${DOKPLOY_NETWORK:-dokploy-network}
     expose:
       - "8080"
     healthcheck:
@@ -167,6 +184,9 @@ services:
 networks:
   faqhub:
     driver: bridge
+  dokploy-network:
+    external: true
+    name: ${DOKPLOY_NETWORK:-dokploy-network}
 
 volumes:
   mysql_data:
