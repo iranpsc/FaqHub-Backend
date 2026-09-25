@@ -82,11 +82,31 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the user's image URL.
+     * Public URL for the user's avatar.
+     *
+     * The image column stores a path on the public disk (avatars/…).
+     * Absolute URLs are returned unchanged so remote avatars are not
+     * prefixed with /storage/.
      */
     public function getImageUrlAttribute(): ?string
     {
-        return $this->image ? asset('storage/'.$this->image) : null;
+        $image = is_string($this->image) ? trim($this->image) : '';
+
+        if ($image === '') {
+            return null;
+        }
+
+        if (str_starts_with($image, 'http://') || str_starts_with($image, 'https://')) {
+            return $image;
+        }
+
+        $path = ltrim($image, '/');
+
+        if (str_starts_with($path, 'storage/')) {
+            $path = substr($path, strlen('storage/'));
+        }
+
+        return asset('storage/'.$path);
     }
 
     /**

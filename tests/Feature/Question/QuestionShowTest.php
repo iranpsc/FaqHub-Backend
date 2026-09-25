@@ -61,6 +61,22 @@ class QuestionShowTest extends TestCase
         ]);
     }
 
+    public function test_show_exposes_author_avatar_as_image_url(): void
+    {
+        $author = User::factory()->create(['image' => 'avatars/show-author.jpg']);
+        $this->createPublishedQuestion([
+            'slug' => 'author-avatar',
+            'user_id' => $author->id,
+        ]);
+
+        $expectedUrl = $author->image_url;
+
+        $this->getJson('/api/questions/author-avatar')
+            ->assertOk()
+            ->assertJsonPath('data.user.image_url', $expectedUrl)
+            ->assertJsonPath('data.user.image', $expectedUrl);
+    }
+
     public function test_show_returns_404_for_unknown_slug(): void
     {
         $this->getJson('/api/questions/does-not-exist')->assertNotFound();
