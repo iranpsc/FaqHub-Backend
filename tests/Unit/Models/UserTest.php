@@ -74,6 +74,22 @@ class UserTest extends TestCase
         $this->assertStringContainsString('storage', $user->image_url);
     }
 
+    public function test_image_url_returns_remote_url_unchanged(): void
+    {
+        $url = 'https://cdn.example.com/avatars/remote.jpg';
+        $user = User::factory()->create(['image' => $url]);
+
+        $this->assertSame($url, $user->image_url);
+    }
+
+    public function test_image_url_does_not_double_prefix_storage_path(): void
+    {
+        $user = User::factory()->create(['image' => '/storage/avatars/test.jpg']);
+
+        $this->assertSame(asset('storage/avatars/test.jpg'), $user->image_url);
+        $this->assertStringNotContainsString('storage/storage/', $user->image_url);
+    }
+
     public function test_questions_relation_returns_has_many(): void
     {
         $user = User::factory()->create();

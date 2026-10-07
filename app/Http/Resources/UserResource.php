@@ -24,6 +24,7 @@ class UserResource extends JsonResource
             'level' => $this->level,
             'score' => $this->score,
             'image' => $this->image_url,
+            'image_url' => $this->image_url,
         ];
     }
 
