@@ -15,6 +15,8 @@
 
 node_modules
 vendor
+data
+build
 npm-debug.log
 yarn-error.log
 

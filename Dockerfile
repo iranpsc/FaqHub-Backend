@@ -1,49 +1,27 @@
+# syntax=docker/dockerfile:1
+
 # -----------------------------------------------------------------------------
 # Stage 1: Frontend assets (Vite)
+# Runs in parallel with the PHP extension and Composer stages.
 # -----------------------------------------------------------------------------
 FROM node:22-alpine AS frontend
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci \
-    && npm cache clean --force
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
 
 COPY vite.config.js postcss.config.js tailwind.config.js ./
 COPY resources ./resources
-COPY public ./public
 
 RUN npm run build
 
 # -----------------------------------------------------------------------------
-# Stage 2: PHP Composer dependencies
+# Stage 2: PHP runtime with extensions
+# Kept free of application source so this layer stays cached across deploys.
 # -----------------------------------------------------------------------------
-FROM composer:2 AS composer-bin
-
-FROM composer-bin AS vendor
-
-WORKDIR /app
-
-COPY composer.json composer.lock ./
-
-RUN composer install \
-    --no-dev \
-    --no-scripts \
-    --no-autoloader \
-    --no-interaction \
-    --prefer-dist \
-    --ignore-platform-reqs \
-    && composer clear-cache
-
-COPY . .
-COPY --from=frontend /app/public/build ./public/build
-
-RUN composer dump-autoload --optimize --classmap-authoritative --no-dev --no-interaction
-
-# -----------------------------------------------------------------------------
-# Stage 3: Production PHP-FPM runtime
-# -----------------------------------------------------------------------------
-FROM php:8.4-fpm-alpine AS app
+FROM php:8.4-fpm-alpine AS php-base
 
 LABEL org.opencontainers.image.title="FaqHub Backend" \
       org.opencontainers.image.description="Laravel API for FaqHub"
@@ -126,11 +104,47 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# -----------------------------------------------------------------------------
+# Stage 3: Composer dependencies and the production source tree
+# Independent of php-base so installs overlap extension compilation.
+# -----------------------------------------------------------------------------
+FROM composer:2 AS vendor
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN --mount=type=cache,target=/tmp/composer-cache \
+    COMPOSER_CACHE_DIR=/tmp/composer-cache \
+    composer install \
+        --no-dev \
+        --no-scripts \
+        --no-autoloader \
+        --no-interaction \
+        --prefer-dist \
+        --ignore-platform-reqs
+
+COPY app ./app
+COPY bootstrap ./bootstrap
+COPY config ./config
+COPY database ./database
+COPY lang ./lang
+COPY routes ./routes
+COPY artisan composer.json composer.lock ./
+
+RUN composer dump-autoload --optimize --classmap-authoritative --no-dev --no-interaction
+
+COPY resources/views ./resources/views
+COPY public ./public
+COPY --from=frontend /app/public/build ./public/build
+
+# -----------------------------------------------------------------------------
+# Stage 4: Production PHP-FPM runtime
+# -----------------------------------------------------------------------------
+FROM php-base AS app
+
 WORKDIR /var/www/html
 
 COPY --from=vendor --chown=faqhub:faqhub /app /var/www/html
-
-RUN chown -R faqhub:faqhub storage bootstrap/cache public/sitemaps
 
 # php-fpm master runs as root; pool workers run as faqhub (see www.conf)
 EXPOSE 9000
@@ -142,7 +156,7 @@ ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["php-fpm", "-F"]
 
 # -----------------------------------------------------------------------------
-# Stage 4: Nginx (serves static assets + proxies PHP)
+# Stage 5: Nginx (serves static assets + proxies PHP)
 # -----------------------------------------------------------------------------
 FROM nginx:1.27-alpine AS nginx
 
@@ -159,7 +173,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD wget -qO- http://127.0.0.1/healthz >/dev/null || exit 1
 
 # -----------------------------------------------------------------------------
-# Stage 5: Development PHP image
+# Stage 6: Development PHP image
 # -----------------------------------------------------------------------------
 FROM app AS app-dev
 
@@ -167,7 +181,7 @@ ENV APP_ENV=local \
     APP_DEBUG=true \
     PHP_OPCACHE_ENABLE=0
 
-COPY --from=composer-bin /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY docker/mirrors/install-pecl-extension.sh /tmp/install-pecl-extension.sh
 
