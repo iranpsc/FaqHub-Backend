@@ -13,12 +13,10 @@
 # dokploy-network so it does not pick the private bridge and 504.
 # mysql, redis, queue, and scheduler stay on faqhub only.
 
+# One image for app, queue, scheduler, and reverb. Only app builds it;
+# the other roles reuse the tag so Compose does not compile four copies.
 x-app-common: &app-common
   image: faqhub-backend:${IMAGE_TAG:-latest}
-  build:
-    context: .
-    dockerfile: Dockerfile
-    target: app
   restart: unless-stopped
   env_file:
     - .env
@@ -27,12 +25,13 @@ x-app-common: &app-common
     APP_DEBUG: ${APP_DEBUG:-false}
     APP_URL: ${APP_URL:-http://localhost:8000}
     DB_CONNECTION: ${DB_CONNECTION:-app}
-    DB_HOST: mysql
+    # Unqualified mysql/redis on dokploy-network resolve to another stack.
+    DB_HOST: faqhub-mysql
     DB_PORT: 3306
     DB_DATABASE: ${DB_DATABASE:-faqhub}
     DB_USERNAME: ${DB_USERNAME:-faqhub}
     DB_PASSWORD: ${DB_PASSWORD:-faqhub}
-    REDIS_HOST: redis
+    REDIS_HOST: faqhub-redis
     REDIS_PORT: 6379
     REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     CACHE_STORE: ${CACHE_STORE:-redis}
@@ -62,6 +61,10 @@ x-app-common: &app-common
 services:
   app:
     <<: *app-common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
     environment:
       <<: *app-env
       CONTAINER_ROLE: app
@@ -143,7 +146,9 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - faqhub
+      faqhub:
+        aliases:
+          - faqhub-mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
       interval: 10s
@@ -170,7 +175,9 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - faqhub
+      faqhub:
+        aliases:
+          - faqhub-redis
     healthcheck:
       test:
         [
