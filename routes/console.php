@@ -3,6 +3,7 @@
 use App\Jobs\GenerateSitemaps;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 use Sentry\Laravel\Integration;
 
 use function Sentry\captureException;
@@ -15,6 +16,8 @@ Artisan::command('sitemap:generate', function () {
     GenerateSitemaps::dispatch();
     $this->info('Sitemap generation job dispatched.');
 })->purpose('Generate sitemap files for questions, categories, tags, and authors');
+
+Schedule::command('sitemap:generate')->everyThreeHours();
 
 Artisan::command('sentry:send-test-error', function () {
     if (empty(config('sentry.dsn'))) {
