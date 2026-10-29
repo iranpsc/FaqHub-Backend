@@ -43,7 +43,7 @@ class GenerateSitemaps implements ShouldQueue
     public function handle(): void
     {
         $baseUrl = 'https://faqhub.ir';
-        $targetDir = public_path('sitemap');
+        $targetDir = public_path('sitemaps');
 
         if (! File::exists($targetDir)) {
             File::makeDirectory($targetDir, 0755, true);

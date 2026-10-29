@@ -23,12 +23,16 @@ return [
     // Allowed origins - strict in production, local frontend in development.
     // Credentials are enabled, so the origin must be explicit (not *).
     'allowed_origins' => env('APP_ENV', 'production') === 'production'
-        ? [env('FRONTEND_APP_URL', 'https://faqhub.ir')]
-        : array_values(array_unique(array_filter([
-            env('FRONTEND_APP_URL', 'http://localhost:3000'),
-            'http://localhost:3000',
-            'http://127.0.0.1:3000',
-        ]))),
+    ? [
+        'https://faqhub.ir',
+    ]
+    : [
+        'https://dev.faqhub.ir',
+        'http://localhost:5175',
+        'http://127.0.0.1:5175',
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+    ],
 
     'allowed_origins_patterns' => [],
 
