@@ -45,12 +45,7 @@ return [
         'X-CSRF-TOKEN',
     ],
 
-    // Expose rate limit headers to the client
-    'exposed_headers' => [
-        'X-RateLimit-Limit',
-        'X-RateLimit-Remaining',
-        'Retry-After',
-    ],
+    'exposed_headers' => [],
 
     // Cache preflight requests for 1 hour
     'max_age' => 3600,
