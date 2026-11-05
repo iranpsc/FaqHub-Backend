@@ -3,10 +3,6 @@
 use App\Jobs\GenerateSitemaps;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Schedule;
-use Sentry\Laravel\Integration;
-
-use function Sentry\captureException;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
