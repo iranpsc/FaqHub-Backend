@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Middleware\ApiRateLimiter;
 use App\Http\Middleware\OptionalAuthSanctum;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -20,7 +19,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(StartSession::class);
         $middleware->append(SecurityHeaders::class);
-        $middleware->appendToGroup('api', ApiRateLimiter::class);
         $middleware->alias([
             'auth.optional' => OptionalAuthSanctum::class,
         ]);
