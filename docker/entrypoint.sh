@@ -12,11 +12,6 @@ mkdir -p \
     /var/www/html/bootstrap/cache \
     /var/www/html/public/sitemaps
 
-# App writes to public/sitemap; host data is bind-mounted at public/sitemaps
-if [ ! -e /var/www/html/public/sitemap ]; then
-    ln -sfn sitemaps /var/www/html/public/sitemap
-fi
-
 wait_for_host() {
     host="$1"
     port="$2"

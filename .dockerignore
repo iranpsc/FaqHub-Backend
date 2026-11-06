@@ -29,7 +29,7 @@ bootstrap/cache/*.php
 public/build
 public/hot
 public/storage
-public/sitemap
+public/sitemaps
 
 tests
 phpunit.xml

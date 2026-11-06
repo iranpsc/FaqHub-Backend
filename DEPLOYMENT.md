@@ -53,7 +53,7 @@ Production compose bind-mounts:
 | Host path | Container path |
 |---|---|
 | `${FAQHUB_STATIC_PATH}/storage` | `/var/www/html/storage/app/public` |
-| `${FAQHUB_STATIC_PATH}/sitemaps` | `/var/www/html/public/sitemaps` |
+| `${SITEMAPS_HOST_PATH}` | `/var/www/html/public/sitemaps` |
 
 ### 1.2 Create the Dokploy application
 
@@ -104,6 +104,7 @@ REVERB_PORT=443
 REVERB_SCHEME=https
 
 FAQHUB_STATIC_PATH=/opt/faqhub
+SITEMAPS_HOST_PATH=/opt/faqhub/sitemaps
 
 # Do NOT publish MySQL/Redis/App host ports on Dokploy — Traefik routes internally.
 # Optional Redis AUTH (also set in Laravel REDIS_PASSWORD):
@@ -449,7 +450,7 @@ docker build --target app-dev -t faqhub-app-dev:latest .
 | Environment | Host path | Container path |
 |---|---|---|
 | Production / Dokploy | `${FAQHUB_STATIC_PATH}/storage` | `/var/www/html/storage/app/public` |
-| Production / Dokploy | `${FAQHUB_STATIC_PATH}/sitemaps` | `/var/www/html/public/sitemaps` |
+| Production / Dokploy | `${SITEMAPS_HOST_PATH}` | `/var/www/html/public/sitemaps` |
 | Local dev (recommended) | `./data/faqhub` | `/opt/faqhub` (extra mount; uploads also use bind-mounted project `storage/`) |
 
 The entrypoint runs `php artisan storage:link`, which creates `public/storage` → `storage/app/public`. Uploads (e.g. avatars) persist on the host across container rebuilds.
