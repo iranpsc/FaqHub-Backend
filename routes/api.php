@@ -11,7 +11,6 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
-// Auth routes with stricter rate limiting
 Route::prefix('auth')->group(function () {
     Route::middleware(['guest'])->group(function () {
         Route::post('/redirect', [AuthController::class, 'redirect'])->name('auth.redirect');
@@ -44,7 +43,6 @@ Route::delete('questions/{question}/pin', [QuestionController::class, 'unpin']);
 Route::post('questions/{question}/feature', [QuestionController::class, 'feature']);
 Route::delete('questions/{question}/feature', [QuestionController::class, 'unfeature']);
 
-// Question CRUD with create rate limiting
 Route::get('questions', [QuestionController::class, 'index']);
 Route::post('questions', [QuestionController::class, 'store']);
 Route::get('questions/{question:slug}', [QuestionController::class, 'show']);
@@ -54,7 +52,6 @@ Route::delete('questions/{question}', [QuestionController::class, 'destroy']);
 Route::get('tags/{tag:slug}/questions', [TagController::class, 'questions']);
 Route::apiResource('tags', TagController::class)->scoped(['tag' => 'slug']);
 
-// Answers with create rate limiting
 Route::get('questions/{question:id}/answers', [AnswerController::class, 'index']);
 Route::post('questions/{question:id}/answers', [AnswerController::class, 'store']);
 Route::put('answers/{answer}', [AnswerController::class, 'update']);
@@ -63,7 +60,6 @@ Route::delete('answers/{answer}', [AnswerController::class, 'destroy']);
 Route::post('answers/{answer}/publish', [AnswerController::class, 'publish']);
 Route::post('answers/{answer}/toggle-correctness', [AnswerController::class, 'toggleCorrectness']);
 
-// Comments with create rate limiting
 Route::get('questions/{question}/comments', [CommentController::class, 'index'])->name('questions.comments.index');
 Route::get('answers/{answer}/comments', [CommentController::class, 'index'])->name('answers.comments.index');
 Route::post('questions/{question}/comments', [CommentController::class, 'store'])->name('questions.comments.store');

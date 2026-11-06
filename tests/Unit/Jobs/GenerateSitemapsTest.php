@@ -27,7 +27,8 @@ class GenerateSitemapsTest extends TestCase
     {
         parent::setUp();
 
-        $this->sitemapDir = public_path('sitemap');
+        Config::set('app.frontend_url', 'https://faqhub.ir');
+        $this->sitemapDir = public_path('sitemaps');
         $this->ftpRoot = storage_path('framework/testing/ftp');
 
         // Reconfigure FTP disk to local for testing
@@ -38,7 +39,7 @@ class GenerateSitemapsTest extends TestCase
 
         File::ensureDirectoryExists($this->ftpRoot);
 
-        // Clean public/sitemap before each test
+        // Clean public/sitemaps before each test
         if (File::exists($this->sitemapDir)) {
             File::cleanDirectory($this->sitemapDir);
         }
