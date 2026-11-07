@@ -5,7 +5,7 @@
 #   docker compose -f docker-compose.dev.yml logs -f
 #
 # Code is bind-mounted for live edits. Static uploads use /opt/faqhub
-# (override with FAQHUB_STATIC_PATH).
+# and sitemaps use SITEMAPS_HOST_PATH.
 
 name: faqhub-dev
 
@@ -53,6 +53,7 @@ x-app-common: &app-common
     - /var/www/html/vendor
     - /var/www/html/node_modules
     - ${FAQHUB_STATIC_PATH:-/opt/faqhub}:/opt/faqhub
+    - ${SITEMAPS_HOST_PATH}:/var/www/html/public/sitemaps
   networks:
     - faqhub
   depends_on:
@@ -114,6 +115,7 @@ services:
         condition: service_started
 
   scheduler:
+    # The scheduler loop runs sitemap:generate according to routes/console.php.
     <<: *app-common
     container_name: faqhub-dev-scheduler
     environment:

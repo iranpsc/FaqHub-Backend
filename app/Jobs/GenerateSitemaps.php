@@ -31,7 +31,7 @@ class GenerateSitemaps implements ShouldQueue
     private const LAZY_CHUNK_SIZE = 500;
 
     /**
-     * Collected generated sitemap filenames (relative to public/sitemap).
+     * Collected generated sitemap filenames (relative to public/sitemaps).
      *
      * @var array<int, string>
      */
@@ -42,8 +42,8 @@ class GenerateSitemaps implements ShouldQueue
      */
     public function handle(): void
     {
-        $baseUrl = 'https://faqhub.ir';
-        $targetDir = public_path('sitemap');
+        $baseUrl = rtrim((string) config('app.frontend_url'), '/');
+        $targetDir = public_path('sitemaps');
 
         if (! File::exists($targetDir)) {
             File::makeDirectory($targetDir, 0755, true);
@@ -57,7 +57,7 @@ class GenerateSitemaps implements ShouldQueue
         if (! empty($this->generatedFiles)) {
             $index = SitemapIndex::create();
             foreach ($this->generatedFiles as $relativeFile) {
-                $index->add($baseUrl.'/sitemap/'.ltrim($relativeFile, '/'));
+                $index->add($baseUrl.'/sitemaps/'.ltrim($relativeFile, '/'));
             }
             $index->writeToFile($targetDir.DIRECTORY_SEPARATOR.'sitemap.xml');
             $this->generatedFiles[] = 'sitemap.xml';

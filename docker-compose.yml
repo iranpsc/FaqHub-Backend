@@ -2,7 +2,7 @@
 #
 # Host bind mounts:
 #   ${FAQHUB_STATIC_PATH:-/opt/faqhub}/storage   -> storage/app/public
-#   ${FAQHUB_STATIC_PATH:-/opt/faqhub}/sitemaps  -> public/sitemaps
+#   ${SITEMAPS_HOST_PATH:-/opt/faqhub/sitemaps}  -> public/sitemaps
 #
 # Networks:
 #   faqhub           private bridge — app, workers, MySQL, Redis
@@ -49,7 +49,7 @@ x-app-common: &app-common
     LOG_CHANNEL: stderr
   volumes:
     - ${FAQHUB_STATIC_PATH:-/opt/faqhub}/storage:/var/www/html/storage/app/public
-    - ${FAQHUB_STATIC_PATH:-/opt/faqhub}/sitemaps:/var/www/html/public/sitemaps
+    - ${SITEMAPS_HOST_PATH}:/var/www/html/public/sitemaps
   networks:
     - faqhub
   depends_on:
@@ -98,6 +98,7 @@ services:
       disable: true
 
   scheduler:
+    # The scheduler loop runs sitemap:generate according to routes/console.php.
     <<: *app-common
     environment:
       <<: *app-env
