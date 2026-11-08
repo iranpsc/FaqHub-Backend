@@ -24,8 +24,8 @@ class CategoryController extends Controller
     public function index(Request $request)
     {
         $validated = $request->validate([
-            'query' => 'nullable|string|max:150',
-            'limit' => 'nullable|integer|min:1|max:100',
+            'query' => 'nullable|string',
+            'limit' => 'nullable|integer|min:0|max:100',
         ]);
         $query = $validated['query'] ?? null;
         $categories = Category::when($query, function ($q) use ($query) {
@@ -46,7 +46,7 @@ class CategoryController extends Controller
     public function popular(Request $request)
     {
         $limit = $request->validate([
-            'limit' => 'nullable|integer|min:1|max:100',
+            'limit' => 'nullable|integer|min:0|max:100',
         ])['limit'] ?? 15;
 
         // Simplified query - just use questions_count for popularity

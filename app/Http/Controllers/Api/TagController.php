@@ -22,7 +22,7 @@ class TagController extends Controller
     public function index(Request $request)
     {
         $validated = $request->validate([
-            'query' => 'nullable|string|max:150',
+            'query' => 'nullable|string',
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
         $query = $validated['query'] ?? null;

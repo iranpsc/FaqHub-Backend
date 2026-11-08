@@ -26,7 +26,7 @@ class AuthorController extends Controller
                 'per_page' => 'nullable|integer|min:1|max:100',
                 'sort_by' => 'nullable|in:score,questions_count,answers_count,name,created_at',
                 'sort_order' => 'nullable|in:asc,desc',
-                'search' => 'nullable|string|max:150',
+                'search' => 'nullable|string',
             ]);
             $perPage = $validated['per_page'] ?? 20;
             $sortBy = $validated['sort_by'] ?? 'score'; // score, questions_count, answers_count, name, created_at
@@ -183,7 +183,7 @@ class AuthorController extends Controller
         try {
             $validated = $request->validate([
                 'per_page' => 'nullable|integer|min:1|max:100',
-                'type' => 'nullable|in:questions,answers,comments',
+                'type' => 'nullable|string',
             ]);
             $perPage = $validated['per_page'] ?? 10;
             $type = $validated['type'] ?? 'questions';
