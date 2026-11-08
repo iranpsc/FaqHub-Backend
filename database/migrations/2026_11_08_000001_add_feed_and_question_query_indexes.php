@@ -28,11 +28,6 @@ return new class extends Migration
             });
         }
 
-        if (! $schema->hasIndex($tableName, 'activity_log_description_created_idx')) {
-            $schema->table($tableName, function (Blueprint $table) {
-                $table->index(['description', 'created_at'], 'activity_log_description_created_idx');
-            });
-        }
     }
 
     public function down(): void
@@ -57,10 +52,5 @@ return new class extends Migration
             });
         }
 
-        if ($schema->hasIndex($tableName, 'activity_log_description_created_idx')) {
-            $schema->table($tableName, function (Blueprint $table) {
-                $table->dropIndex('activity_log_description_created_idx');
-            });
-        }
     }
 };
