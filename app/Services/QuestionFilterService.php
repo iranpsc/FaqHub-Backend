@@ -19,6 +19,15 @@ class QuestionFilterService
 
         $user = $request->user();
 
+        // Policies used by QuestionResource need these per-viewer quotas. Load them
+        // once per request instead of counting the same relations for every item.
+        if ($user && ! isset($user->featured_questions_count)) {
+            $user->loadCount([
+                'featuredQuestions as featured_questions_count',
+                'unfeaturedQuestions as unfeatured_questions_count',
+            ]);
+        }
+
         // Start with explicit select to avoid column conflicts from JOINs
         $query->select('questions.*');
 
@@ -49,6 +58,8 @@ class QuestionFilterService
         $query->with(['user', 'category', 'tags'])
             ->withCount([
                 'votes',
+                'upVotes as upvotes_count',
+                'downVotes as downvotes_count',
                 'answers',
                 'comments',
                 'answers as unpublished_answers_count' => function ($query) {

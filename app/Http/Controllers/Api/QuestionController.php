@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreQuestionRequest;
 use App\Http\Requests\UpdateQuestionRequest;
 use App\Http\Resources\QuestionResource;
+use App\Models\Comment;
 use App\Models\Question;
 use App\Models\Tag;
 use App\Services\ActivityLogger;
 use App\Services\QuestionFilterService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class QuestionController extends Controller
 {
@@ -52,8 +55,8 @@ class QuestionController extends Controller
         $questions = Question::with('user', 'category')
             ->withCount([
                 'votes',
-                'upVotes',
-                'downVotes',
+                'upVotes as upvotes_count',
+                'downVotes as downvotes_count',
                 'answers',
                 'comments',
                 'answers as unpublished_answers_count' => function ($query) {
@@ -84,16 +87,19 @@ class QuestionController extends Controller
     {
         $user = $request->user();
 
-        $question = Question::create([
-            'category_id' => $request->category_id,
-            'user_id' => $user->id,
-            'title' => $request->title,
-            'slug' => Question::generateSlug($request->title),
-            'content' => $request->content,
-        ]);
+        $question = DB::transaction(function () use ($request, $user) {
+            $question = Question::create([
+                'category_id' => $request->category_id,
+                'user_id' => $user->id,
+                'title' => $request->title,
+                'slug' => Question::generateSlug($request->title),
+                'content' => $request->content,
+            ]);
 
-        $tagIds = $this->processTags($request->tags);
-        $question->tags()->sync($tagIds);
+            $question->tags()->sync($this->processTags($request->tags));
+
+            return $question;
+        });
 
         // Log question creation
         $this->activityLogger->logQuestionCreated($question, $user);
@@ -108,7 +114,8 @@ class QuestionController extends Controller
             $this->activityLogger->logPublishing($question, $user);
         }
 
-        $question->load('user', 'category', 'tags', 'upVotes', 'downVotes');
+        $question->load('user', 'category', 'tags');
+        $question->loadCount(['upVotes as upvotes_count', 'downVotes as downvotes_count']);
 
         return new QuestionResource($question);
     }
@@ -122,6 +129,7 @@ class QuestionController extends Controller
 
         $user = request()->user();
 
+        $this->loadViewerFeatureCounts($user);
         $this->loadPinStatus($question, $user);
         $this->loadFeatureStatus($question, $user);
         $this->loadQuestionRelations($question, $user);
@@ -167,13 +175,29 @@ class QuestionController extends Controller
             'user',
             'category',
             'tags',
-            'upVotes',
-            'downVotes',
-            'comments',
+            'comments' => function ($query) use ($user) {
+                $query->visible($user)
+                    ->with('user')
+                    ->withCount([
+                        'upVotes as upvotes_count',
+                        'downVotes as downvotes_count',
+                    ]);
+
+                if ($user) {
+                    $query->addSelect([
+                        'user_vote' => DB::table('votes')
+                            ->select('type')
+                            ->whereColumn('votes.votable_id', 'comments.id')
+                            ->where('votes.votable_type', Comment::class)
+                            ->where('votes.user_id', $user->id)
+                            ->limit(1),
+                    ]);
+                }
+            },
         ])->loadCount([
             'votes',
-            'upVotes',
-            'downVotes',
+            'upVotes as upvotes_count',
+            'downVotes as downvotes_count',
             'answers',
             'comments',
             'answers as unpublished_answers_count' => function ($query) {
@@ -183,6 +207,22 @@ class QuestionController extends Controller
                 $query->where('published', false);
             },
         ]);
+
+        if ($user) {
+            $question->user_vote = $question->votes()
+                ->where('user_id', $user->id)
+                ->value('type');
+        }
+    }
+
+    private function loadViewerFeatureCounts($user): void
+    {
+        if ($user && ! isset($user->featured_questions_count)) {
+            $user->loadCount([
+                'featuredQuestions as featured_questions_count',
+                'unfeaturedQuestions as unfeatured_questions_count',
+            ]);
+        }
     }
 
     /**
@@ -206,7 +246,8 @@ class QuestionController extends Controller
         $tagIds = $this->processTags($request->tags);
         $question->tags()->sync($tagIds);
 
-        $question->load('user', 'category', 'tags', 'upVotes', 'downVotes');
+        $question->load('user', 'category', 'tags');
+        $question->loadCount(['upVotes as upvotes_count', 'downVotes as downvotes_count']);
 
         return new QuestionResource($question);
     }
@@ -242,7 +283,8 @@ class QuestionController extends Controller
         // Award 2 points for publishing a question
         $user->increment('score', 2);
 
-        $question->load('user', 'category', 'tags', 'upVotes', 'downVotes');
+        $question->load('user', 'category', 'tags');
+        $question->loadCount(['upVotes as upvotes_count', 'downVotes as downvotes_count']);
 
         return response()->json([
             'success' => true,
@@ -294,11 +336,11 @@ class QuestionController extends Controller
         }
 
         // Return updated vote counts and user vote status
-        $question->load('upVotes', 'downVotes');
+        $question->loadCount(['upVotes as upvotes_count', 'downVotes as downvotes_count']);
 
         return response()->json([
-            'upvotes' => $question->upVotes->count(),
-            'downvotes' => $question->downVotes->count(),
+            'upvotes' => $question->upvotes_count,
+            'downvotes' => $question->downvotes_count,
             'user_vote' => $voteType,
         ]);
     }
@@ -414,23 +456,35 @@ class QuestionController extends Controller
     private function processTags(array $tags): array
     {
         $tagIds = [];
+        $newTagNames = [];
 
         foreach ($tags as $tag) {
             if (isset($tag['id']) && is_numeric($tag['id'])) {
-                // Existing tag
                 $tagIds[] = $tag['id'];
             } elseif (isset($tag['name']) && ! empty($tag['name'])) {
-                // New tag - create it if it doesn't exist
                 $tagName = trim($tag['name']);
-                $existingTag = Tag::where('name', $tagName)->first();
-
-                if ($existingTag) {
-                    $tagIds[] = $existingTag->id;
-                } else {
-                    $newTag = Tag::create(['name' => $tagName]);
-                    $tagIds[] = $newTag->id;
+                if ($tagName !== '') {
+                    $newTagNames[] = $tagName;
                 }
             }
+        }
+
+        $newTagNames = array_values(array_unique($newTagNames));
+
+        if ($newTagNames !== []) {
+            $existingNames = Tag::whereIn('name', $newTagNames)->pluck('name')->all();
+            $missingNames = array_values(array_diff($newTagNames, $existingNames));
+
+            if ($missingNames !== []) {
+                Tag::insertOrIgnore(array_map(fn (string $name) => [
+                    'name' => $name,
+                    'slug' => Str::slug($name),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ], $missingNames));
+            }
+
+            $tagIds = array_merge($tagIds, Tag::whereIn('name', $newTagNames)->pluck('id')->all());
         }
 
         return array_unique($tagIds);

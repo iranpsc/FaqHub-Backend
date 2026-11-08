@@ -61,13 +61,32 @@ class DashboardController extends Controller
             ]);
             $limit = $validated['limit'] ?? 15;
 
-            // Get random IDs first (more efficient than inRandomOrder on full table)
-            // Use a subquery with RAND() on a limited set
-            $randomIds = Question::where('published', true)
-                ->select('id')
-                ->inRandomOrder()
-                ->limit($limit)
-                ->pluck('id');
+            // Avoid ORDER BY RAND(), which sorts every published row. Start at a
+            // random point in the indexed primary-key range and wrap if needed.
+            $range = Question::where('published', true)
+                ->selectRaw('MIN(id) as min_id, MAX(id) as max_id')
+                ->first();
+
+            $randomIds = collect();
+            if ($range?->min_id !== null && $range->max_id !== null) {
+                $startId = random_int((int) $range->min_id, (int) $range->max_id);
+
+                $randomIds = Question::where('published', true)
+                    ->where('id', '>=', $startId)
+                    ->orderBy('id')
+                    ->limit($limit)
+                    ->pluck('id');
+
+                if ($randomIds->count() < $limit) {
+                    $randomIds = $randomIds->merge(
+                        Question::where('published', true)
+                            ->where('id', '<', $startId)
+                            ->orderBy('id')
+                            ->limit($limit - $randomIds->count())
+                            ->pluck('id')
+                    );
+                }
+            }
 
             // Then fetch the full data for those IDs
             $questions = Question::with(['user:id,name', 'tags:id,name', 'category:id,name'])

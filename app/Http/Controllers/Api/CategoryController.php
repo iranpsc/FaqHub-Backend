@@ -23,13 +23,17 @@ class CategoryController extends Controller
      */
     public function index(Request $request)
     {
-        $query = $request->input('query');
+        $validated = $request->validate([
+            'query' => 'nullable|string|max:150',
+            'limit' => 'nullable|integer|min:1|max:100',
+        ]);
+        $query = $validated['query'] ?? null;
         $categories = Category::when($query, function ($q) use ($query) {
             return $q->where('name', 'like', "%{$query}%");
         });
 
         $categories = $query
-            ? $categories->get()
+            ? $categories->limit($validated['limit'] ?? 100)->get()
             : $categories->withCount('questions')->paginate();
 
         return CategoryResource::collection($categories);
@@ -41,7 +45,9 @@ class CategoryController extends Controller
      */
     public function popular(Request $request)
     {
-        $limit = $request->input('limit', 15);
+        $limit = $request->validate([
+            'limit' => 'nullable|integer|min:1|max:100',
+        ])['limit'] ?? 15;
 
         // Simplified query - just use questions_count for popularity
         // The complex JOINs for answers and comments were causing performance issues

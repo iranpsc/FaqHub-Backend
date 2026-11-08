@@ -43,8 +43,8 @@ class QuestionResource extends JsonResource
                 : 0,
             'votes_count' => $this->whenCounted('votes'),
             'votes' => [
-                'upvotes' => $this->whenLoaded('upVotes'),
-                'downvotes' => $this->whenLoaded('downVotes'),
+                'upvotes' => $this->voteCount('up'),
+                'downvotes' => $this->voteCount('down'),
                 'user_vote' => $userVote,
             ],
             'views' => $this->views,
@@ -76,13 +76,6 @@ class QuestionResource extends JsonResource
             return $this->resource->user_vote;
         }
 
-        // Fall back to query for non-optimized calls (e.g., show method)
-        if ($request->user()) {
-            $userVoteRecord = $this->votes()->where('user_id', $request->user()->id)->first();
-
-            return $userVoteRecord ? $userVoteRecord->type : null;
-        }
-
         return null;
     }
 
@@ -98,5 +91,26 @@ class QuestionResource extends JsonResource
 
         // Fall back to method for non-optimized calls (e.g., show method)
         return $this->isSolved();
+    }
+
+    /**
+     * Return a precomputed vote count without loading every Vote model.
+     */
+    private function voteCount(string $type): int
+    {
+        $attribute = $type === 'up' ? 'upvotes_count' : 'downvotes_count';
+        $eloquentAttribute = $type === 'up' ? 'up_votes_count' : 'down_votes_count';
+
+        if (isset($this->resource->{$attribute})) {
+            return (int) $this->resource->{$attribute};
+        }
+
+        if (isset($this->resource->{$eloquentAttribute})) {
+            return (int) $this->resource->{$eloquentAttribute};
+        }
+
+        $relation = $type === 'up' ? 'upVotes' : 'downVotes';
+
+        return $this->relationLoaded($relation) ? $this->{$relation}->count() : 0;
     }
 }

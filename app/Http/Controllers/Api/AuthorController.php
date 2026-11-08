@@ -22,10 +22,16 @@ class AuthorController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $perPage = $request->input('per_page', 20);
-            $sortBy = $request->input('sort_by', 'score'); // score, questions_count, answers_count, name, created_at
-            $sortOrder = $request->input('sort_order', 'desc');
-            $search = $request->input('search');
+            $validated = $request->validate([
+                'per_page' => 'nullable|integer|min:1|max:100',
+                'sort_by' => 'nullable|in:score,questions_count,answers_count,name,created_at',
+                'sort_order' => 'nullable|in:asc,desc',
+                'search' => 'nullable|string|max:150',
+            ]);
+            $perPage = $validated['per_page'] ?? 20;
+            $sortBy = $validated['sort_by'] ?? 'score'; // score, questions_count, answers_count, name, created_at
+            $sortOrder = $validated['sort_order'] ?? 'desc';
+            $search = $validated['search'] ?? null;
 
             $query = User::withCount(['questions', 'answers', 'comments'])
                 ->with(['questions' => function ($query) {
@@ -175,8 +181,12 @@ class AuthorController extends Controller
     public function questions(Request $request, User $user)
     {
         try {
-            $perPage = (int) $request->input('per_page', 10);
-            $type = $request->input('type', 'questions');
+            $validated = $request->validate([
+                'per_page' => 'nullable|integer|min:1|max:100',
+                'type' => 'nullable|in:questions,answers,comments',
+            ]);
+            $perPage = $validated['per_page'] ?? 10;
+            $type = $validated['type'] ?? 'questions';
 
             if (! in_array($type, ['questions', 'answers', 'comments'], true)) {
                 $type = 'questions';

@@ -9,6 +9,7 @@ use App\Http\Resources\CommentResource;
 use App\Models\Answer;
 use App\Models\Comment;
 use App\Models\Question;
+use App\Models\Vote;
 use App\Notifications\QuestionInteractionNotification;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
@@ -32,18 +33,18 @@ class CommentController extends Controller
 
         // Handle both question comments and answer comments
         if ($parent instanceof Question) {
-            $comments = $parent->comments()->visible($user)->with('user', 'votes')->latest()->paginate(10);
+            $comments = $this->paginateComments($parent->comments(), $user);
         } elseif ($parent instanceof Answer) {
-            $comments = $parent->comments()->visible($user)->with('user', 'votes')->latest()->paginate(10);
+            $comments = $this->paginateComments($parent->comments(), $user);
         } else {
             // Fallback: if parent is not a model instance, assume it's an ID and determine type from route
             $routeName = request()->route()->getName();
             if ($routeName === 'questions.comments.index') {
                 $question = Question::findOrFail($parent);
-                $comments = $question->comments()->visible($user)->with('user', 'votes')->latest()->paginate(10);
+                $comments = $this->paginateComments($question->comments(), $user);
             } elseif ($routeName === 'answers.comments.index') {
                 $answer = Answer::findOrFail($parent);
-                $comments = $answer->comments()->visible($user)->with('user', 'votes')->latest()->paginate(10);
+                $comments = $this->paginateComments($answer->comments(), $user);
             } else {
                 // If we can't determine the parent type, return empty collection
                 $comments = collect();
@@ -51,6 +52,29 @@ class CommentController extends Controller
         }
 
         return CommentResource::collection($comments);
+    }
+
+    private function paginateComments($relation, $user)
+    {
+        $query = $relation->visible($user)
+            ->with('user')
+            ->withCount([
+                'upVotes as upvotes_count',
+                'downVotes as downvotes_count',
+            ]);
+
+        if ($user) {
+            $query->addSelect([
+                'user_vote' => Vote::query()
+                    ->select('type')
+                    ->whereColumn('votes.votable_id', 'comments.id')
+                    ->where('votes.votable_type', Comment::class)
+                    ->where('votes.user_id', $user->id)
+                    ->limit(1),
+            ]);
+        }
+
+        return $query->latest()->paginate(10);
     }
 
     public function store(StoreCommentRequest $request, $parent)
@@ -202,13 +226,13 @@ class CommentController extends Controller
             ->first();
 
         if ($existingVote) {
-            $comment->load('upVotes', 'downVotes');
+            $comment->loadCount(['upVotes as upvotes_count', 'downVotes as downvotes_count']);
 
             return response()->json([
                 'success' => false,
                 'message' => 'شما قبلا به این مورد رای داده‌اید',
-                'upvotes' => $comment->upVotes->count(),
-                'downvotes' => $comment->downVotes->count(),
+                'upvotes' => $comment->upvotes_count,
+                'downvotes' => $comment->downvotes_count,
                 'user_vote' => $existingVote->type,
             ], 409);
         }
@@ -223,11 +247,11 @@ class CommentController extends Controller
         $this->activityLogger->logVote($comment, $request->user(), $voteType);
 
         // Return updated vote counts and user vote status
-        $comment->load('upVotes', 'downVotes');
+        $comment->loadCount(['upVotes as upvotes_count', 'downVotes as downvotes_count']);
 
         return response()->json([
-            'upvotes' => $comment->upVotes->count(),
-            'downvotes' => $comment->downVotes->count(),
+            'upvotes' => $comment->upvotes_count,
+            'downvotes' => $comment->downvotes_count,
             'user_vote' => $voteType,
         ]);
     }
