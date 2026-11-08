@@ -24,7 +24,7 @@ class AuthorController extends Controller
         try {
             $validated = $request->validate([
                 'per_page' => 'nullable|integer|min:1|max:100',
-                'sort_by' => 'nullable|in:score,questions_count,answers_count,name,created_at',
+                'sort_by' => 'nullable|string',
                 'sort_order' => 'nullable|in:asc,desc',
                 'search' => 'nullable|string',
             ]);

@@ -117,8 +117,8 @@ class QuestionShowTest extends TestCase
 
         $response = $this->getJson('/api/questions/voted-question')->assertOk();
 
-        $this->assertCount(2, $response->json('data.votes.upvotes'));
-        $this->assertCount(1, $response->json('data.votes.downvotes'));
+        $this->assertSame(2, $response->json('data.votes.upvotes'));
+        $this->assertSame(1, $response->json('data.votes.downvotes'));
     }
 
     public function test_show_skips_policy_so_guest_can_open_unpublished_question_by_slug(): void
