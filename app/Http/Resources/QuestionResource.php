@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Str;
 
 class QuestionResource extends JsonResource
 {
@@ -24,7 +25,12 @@ class QuestionResource extends JsonResource
             'id' => $this->id,
             'title' => $this->title,
             'slug' => $this->slug,
-            'content' => $this->content,
+            // List views only need a short preview. Keeping full HTML out of the
+            // homepage response avoids serializing large editor contents into the
+            // initial Next.js document; detail views retain the full content.
+            'content' => $request->boolean('summary')
+                ? Str::limit(trim(strip_tags((string) $this->content)), 300)
+                : $this->content,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'published' => $this->published,
