@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Str;
 
 class QuestionResource extends JsonResource
 {
@@ -24,7 +25,12 @@ class QuestionResource extends JsonResource
             'id' => $this->id,
             'title' => $this->title,
             'slug' => $this->slug,
-            'content' => $this->content,
+            // List views only need a short preview. Keeping full HTML out of the
+            // homepage response avoids serializing large editor contents into the
+            // initial Next.js document; detail views retain the full content.
+            'content' => $request->boolean('summary')
+                ? Str::limit(trim(strip_tags((string) $this->content)), 300)
+                : $this->content,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'published' => $this->published,
@@ -43,8 +49,8 @@ class QuestionResource extends JsonResource
                 : 0,
             'votes_count' => $this->whenCounted('votes'),
             'votes' => [
-                'upvotes' => $this->whenLoaded('upVotes'),
-                'downvotes' => $this->whenLoaded('downVotes'),
+                'upvotes' => $this->voteCount('up'),
+                'downvotes' => $this->voteCount('down'),
                 'user_vote' => $userVote,
             ],
             'views' => $this->views,
@@ -76,13 +82,6 @@ class QuestionResource extends JsonResource
             return $this->resource->user_vote;
         }
 
-        // Fall back to query for non-optimized calls (e.g., show method)
-        if ($request->user()) {
-            $userVoteRecord = $this->votes()->where('user_id', $request->user()->id)->first();
-
-            return $userVoteRecord ? $userVoteRecord->type : null;
-        }
-
         return null;
     }
 
@@ -98,5 +97,26 @@ class QuestionResource extends JsonResource
 
         // Fall back to method for non-optimized calls (e.g., show method)
         return $this->isSolved();
+    }
+
+    /**
+     * Return a precomputed vote count without loading every Vote model.
+     */
+    private function voteCount(string $type): int
+    {
+        $attribute = $type === 'up' ? 'upvotes_count' : 'downvotes_count';
+        $eloquentAttribute = $type === 'up' ? 'up_votes_count' : 'down_votes_count';
+
+        if (isset($this->resource->{$attribute})) {
+            return (int) $this->resource->{$attribute};
+        }
+
+        if (isset($this->resource->{$eloquentAttribute})) {
+            return (int) $this->resource->{$eloquentAttribute};
+        }
+
+        $relation = $type === 'up' ? 'upVotes' : 'downVotes';
+
+        return $this->relationLoaded($relation) ? $this->{$relation}->count() : 0;
     }
 }

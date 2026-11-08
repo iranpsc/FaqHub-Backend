@@ -16,14 +16,9 @@ class CommentResource extends JsonResource
      */
     public function toArray($request)
     {
-        $upvotes = $this->votes->where('type', 'up')->count();
-        $downvotes = $this->votes->where('type', 'down')->count();
-        $userVote = null;
-
-        if ($request->user()) {
-            $userVoteRecord = $this->votes->where('user_id', $request->user()->id)->first();
-            $userVote = $userVoteRecord ? ($userVoteRecord->type === 'up' ? 'up' : 'down') : null;
-        }
+        $upvotes = $this->voteCount('up');
+        $downvotes = $this->voteCount('down');
+        $userVote = $this->resource->user_vote ?? $this->loadedUserVote($request);
 
         return [
             'id' => $this->id,
@@ -46,5 +41,32 @@ class CommentResource extends JsonResource
                 'publish' => $request->user() ? $request->user()->can('publish', $this->resource) : false,
             ],
         ];
+    }
+
+    private function voteCount(string $type): int
+    {
+        $attribute = $type === 'up' ? 'upvotes_count' : 'downvotes_count';
+        $eloquentAttribute = $type === 'up' ? 'up_votes_count' : 'down_votes_count';
+
+        if (isset($this->resource->{$attribute})) {
+            return (int) $this->resource->{$attribute};
+        }
+
+        if (isset($this->resource->{$eloquentAttribute})) {
+            return (int) $this->resource->{$eloquentAttribute};
+        }
+
+        $relation = $type === 'up' ? 'upVotes' : 'downVotes';
+
+        return $this->relationLoaded($relation) ? $this->{$relation}->count() : 0;
+    }
+
+    private function loadedUserVote($request): ?string
+    {
+        if (! $this->relationLoaded('votes') || ! $request->user()) {
+            return null;
+        }
+
+        return $this->votes->firstWhere('user_id', $request->user()->id)?->type;
     }
 }

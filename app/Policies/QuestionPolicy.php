@@ -111,12 +111,19 @@ class QuestionPolicy
         }
 
         // If question is already featured, user cannot feature it again
-        if ($user->featuredQuestions()->where('question_id', $question->id)->exists()) {
+        $isAlreadyFeatured = isset($question->is_featured_by_user)
+            ? (bool) $question->is_featured_by_user
+            : $user->featuredQuestions()->where('question_id', $question->id)->exists();
+
+        if ($isAlreadyFeatured) {
             return false;
         }
 
         // Check if user has reached the 2-feature limit
-        if ($user->featuredQuestions()->count() >= 2) {
+        $featuredCount = isset($user->featured_questions_count)
+            ? (int) $user->featured_questions_count
+            : $user->featuredQuestions()->count();
+        if ($featuredCount >= 2) {
             return false;
         }
 
@@ -158,7 +165,10 @@ class QuestionPolicy
         }
 
         // If user unfeature 2 questions, they cannot unfeature more
-        if ($user->unfeaturedQuestions()->count() >= 2) {
+        $unfeaturedCount = isset($user->unfeatured_questions_count)
+            ? (int) $user->unfeatured_questions_count
+            : $user->unfeaturedQuestions()->count();
+        if ($unfeaturedCount >= 2) {
             return false;
         }
 

@@ -26,9 +26,9 @@ class AnswerResource extends JsonResource
             'user' => new UserResource($this->whenLoaded('user')),
             'comments' => CommentResource::collection($this->whenLoaded('comments')),
             'votes' => [
-                'upvotes' => $this->votes->where('type', 'up')->count(),
-                'downvotes' => $this->votes->where('type', 'down')->count(),
-                'user_vote' => $this->votes->where('user_id', $request->user()?->id)->first()?->type,
+                'upvotes' => $this->voteCount('up'),
+                'downvotes' => $this->voteCount('down'),
+                'user_vote' => $this->resource->user_vote ?? $this->loadedUserVote($request),
             ],
             'can' => [
                 'toggle_correctness' => $request->user()?->can('toggleCorrectness', [$this->resource, $this->getToggleAction()])
@@ -48,5 +48,32 @@ class AnswerResource extends JsonResource
     private function getToggleAction()
     {
         return $this->is_correct ? 'markAsNormal' : 'markAsCorrect';
+    }
+
+    private function voteCount(string $type): int
+    {
+        $attribute = $type === 'up' ? 'upvotes_count' : 'downvotes_count';
+        $eloquentAttribute = $type === 'up' ? 'up_votes_count' : 'down_votes_count';
+
+        if (isset($this->resource->{$attribute})) {
+            return (int) $this->resource->{$attribute};
+        }
+
+        if (isset($this->resource->{$eloquentAttribute})) {
+            return (int) $this->resource->{$eloquentAttribute};
+        }
+
+        $relation = $type === 'up' ? 'upVotes' : 'downVotes';
+
+        return $this->relationLoaded($relation) ? $this->{$relation}->count() : 0;
+    }
+
+    private function loadedUserVote(Request $request): ?string
+    {
+        if (! $this->relationLoaded('votes') || ! $request->user()) {
+            return null;
+        }
+
+        return $this->votes->firstWhere('user_id', $request->user()->id)?->type;
     }
 }

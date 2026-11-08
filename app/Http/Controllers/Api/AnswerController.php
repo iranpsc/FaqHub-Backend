@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateAnswerRequest;
 use App\Http\Resources\AnswerResource;
 use App\Models\Answer;
 use App\Models\Question;
+use App\Models\Vote;
 use App\Notifications\QuestionInteractionNotification;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
@@ -34,8 +35,23 @@ class AnswerController extends Controller
         $sort = $request->get('sort'); // votes, comments, newest, oldest, correct
 
         $query = $question->answers()
-            ->with('user', 'votes')
+            ->with('user')
+            ->withCount([
+                'upVotes as upvotes_count',
+                'downVotes as downvotes_count',
+            ])
             ->visible($user);
+
+        if ($user) {
+            $query->addSelect([
+                'user_vote' => Vote::query()
+                    ->select('type')
+                    ->whereColumn('votes.votable_id', 'answers.id')
+                    ->where('votes.votable_type', Answer::class)
+                    ->where('votes.user_id', $user->id)
+                    ->limit(1),
+            ]);
+        }
 
         // Apply dynamic ordering / filtering
         switch ($sort) {
@@ -171,13 +187,13 @@ class AnswerController extends Controller
             ->first();
 
         if ($existingVote) {
-            $answer->load('upVotes', 'downVotes');
+            $answer->loadCount(['upVotes as upvotes_count', 'downVotes as downvotes_count']);
 
             return response()->json([
                 'success' => false,
                 'message' => 'شما قبلا به این مورد رای داده‌اید',
-                'upvotes' => $answer->upVotes->count(),
-                'downvotes' => $answer->downVotes->count(),
+                'upvotes' => $answer->upvotes_count,
+                'downvotes' => $answer->downvotes_count,
                 'user_vote' => $existingVote->type,
             ], 409);
         }
@@ -198,11 +214,11 @@ class AnswerController extends Controller
         }
 
         // Return updated vote counts and user vote status
-        $answer->load('upVotes', 'downVotes');
+        $answer->loadCount(['upVotes as upvotes_count', 'downVotes as downvotes_count']);
 
         return response()->json([
-            'upvotes' => $answer->upVotes->count(),
-            'downvotes' => $answer->downVotes->count(),
+            'upvotes' => $answer->upvotes_count,
+            'downvotes' => $answer->downvotes_count,
             'user_vote' => $voteType,
         ]);
     }
